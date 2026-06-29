@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import { type ResultSetHeader, type RowDataPacket } from "mysql2/promise";
 import { getMySqlPool } from "./mysql";
 
@@ -205,6 +206,8 @@ async function ensureColumnExists(
 }
 
 async function ensureContainersTable() {
+  await connection();
+
   if (!globalThis.__freightflow_containers_table_ready__) {
     globalThis.__freightflow_containers_table_ready__ = (async () => {
       const pool = getMySqlPool();
