@@ -24,16 +24,16 @@ export function CustomersList({ created = false }: { created?: boolean }) {
 
   return (
     <main className="space-y-6 p-5 md:p-7">
-      <section className="rounded-[30px] border border-line bg-panel p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+      <section className="ops-panel-primary rounded-[30px] p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-accent">
+            <p className="ops-kicker text-xs font-semibold uppercase tracking-[0.28em]">
               Customer section
             </p>
-            <h3 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
+            <h3 className="ops-heading mt-3 text-3xl font-semibold tracking-tight">
               Customer list
             </h3>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
+            <p className="ops-copy mt-3 max-w-2xl text-sm leading-7">
               View active customer accounts, monitor billing terms, and create
               new customer profiles for upcoming freight operations.
             </p>
@@ -41,7 +41,7 @@ export function CustomersList({ created = false }: { created?: boolean }) {
 
           <Link
             href="/dashboard/customers/new"
-            className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="ops-action-primary inline-flex h-12 items-center justify-center rounded-2xl px-5 text-sm font-semibold transition hover:opacity-90"
           >
             Add new customer
           </Link>
@@ -55,32 +55,32 @@ export function CustomersList({ created = false }: { created?: boolean }) {
         ) : null}
 
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
-          <article className="rounded-[24px] border border-line bg-panel-muted p-5">
-            <p className="text-sm text-muted">Total customers</p>
-            <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">
+          <article className="ops-metric-card rounded-[24px] p-5">
+            <p className="ops-copy text-sm">Total customers</p>
+            <p className="ops-heading mt-3 text-3xl font-semibold tracking-tight">
               {customers.length}
             </p>
           </article>
-          <article className="rounded-[24px] border border-line bg-panel-muted p-5">
-            <p className="text-sm text-muted">Active accounts</p>
-            <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">
+          <article className="ops-metric-card rounded-[24px] p-5">
+            <p className="ops-copy text-sm">Active accounts</p>
+            <p className="ops-heading mt-3 text-3xl font-semibold tracking-tight">
               {customers.filter((customer) => customer.status === "Active").length}
             </p>
           </article>
-          <article className="rounded-[24px] border border-line bg-panel-muted p-5">
-            <p className="text-sm text-muted">Open with zero shipments</p>
-            <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">
+          <article className="ops-metric-card rounded-[24px] p-5">
+            <p className="ops-copy text-sm">Open with zero shipments</p>
+            <p className="ops-heading mt-3 text-3xl font-semibold tracking-tight">
               {customers.filter((customer) => customer.shipments === 0).length}
             </p>
           </article>
         </div>
       </section>
 
-      <section className="rounded-[30px] border border-line bg-panel p-4 shadow-[0_20px_60px_rgba(15,23,42,0.06)] md:p-6">
+      <section className="ops-panel-secondary rounded-[30px] p-4 md:p-6">
         <div className="overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-y-3">
             <thead>
-              <tr className="text-left text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+              <tr className="ops-subtle text-left text-xs font-semibold uppercase tracking-[0.2em]">
                 <th className="px-4 py-2">Customer</th>
                 <th className="px-4 py-2">Company</th>
                 <th className="px-4 py-2">City</th>
@@ -94,24 +94,24 @@ export function CustomersList({ created = false }: { created?: boolean }) {
               {customers.map((customer) => (
                 <tr
                   key={customer.id}
-                  className="rounded-[24px] bg-panel-muted text-sm text-ink"
+                  className="ops-detail-card rounded-[24px] text-sm"
                 >
                   <td className="rounded-l-[24px] px-4 py-4 align-top">
-                    <p className="font-semibold">{customer.name}</p>
-                    <p className="mt-1 text-xs text-muted">{customer.email}</p>
-                    <p className="mt-1 text-xs text-muted">{customer.phone}</p>
+                    <p className="ops-heading font-semibold">{customer.name}</p>
+                    <p className="ops-subtle mt-1 text-xs">{customer.email}</p>
+                    <p className="ops-subtle mt-1 text-xs">{customer.phone}</p>
                   </td>
                   <td className="px-4 py-4 align-top">
-                    <p className="font-medium">{customer.company}</p>
-                    <p className="mt-1 text-xs text-muted">{customer.industry}</p>
+                    <p className="ops-heading font-medium">{customer.company}</p>
+                    <p className="ops-subtle mt-1 text-xs">{customer.industry}</p>
                   </td>
-                  <td className="px-4 py-4 align-top text-muted">
+                  <td className="ops-copy px-4 py-4 align-top">
                     {customer.city}
                   </td>
-                  <td className="px-4 py-4 align-top text-muted">
+                  <td className="ops-copy px-4 py-4 align-top">
                     {customer.billingTerms}
                   </td>
-                  <td className="px-4 py-4 align-top font-semibold text-ink">
+                  <td className="ops-heading px-4 py-4 align-top font-semibold">
                     {customer.shipments}
                   </td>
                   <td className="px-4 py-4 align-top">
@@ -125,7 +125,7 @@ export function CustomersList({ created = false }: { created?: boolean }) {
                       {customer.status}
                     </span>
                   </td>
-                  <td className="rounded-r-[24px] px-4 py-4 align-top text-muted">
+                  <td className="ops-subtle rounded-r-[24px] px-4 py-4 align-top">
                     {formatDate(customer.createdAt)}
                   </td>
                 </tr>

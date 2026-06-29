@@ -23,7 +23,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${roboto.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      data-portal-theme="dark"
+      className={`${roboto.variable} h-full antialiased`}
+    >
       <body className="min-h-full font-sans text-foreground">
         {children}
       </body>

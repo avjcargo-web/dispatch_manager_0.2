@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "./theme-toggle";
 
 const primaryNav = [
   { label: "Dashboard", href: "/dashboard" },
@@ -33,29 +34,27 @@ export function PortalNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="mt-8 space-y-2">
-      {primaryNav.map((item) => {
-        const active = isActivePath(pathname, item.href);
+    <>
+      <div className="mt-8">
+        <ThemeToggle />
+      </div>
+      <nav className="mt-6 space-y-2">
+        {primaryNav.map((item) => {
+          const active = isActivePath(pathname, item.href);
 
-        return (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-medium transition ${
-              active
-                ? "border-sky-200/25 bg-[linear-gradient(135deg,rgba(53,167,255,0.92),rgba(15,108,189,1))] text-white shadow-[0_16px_30px_rgba(8,60,112,0.38)]"
-                : "border-white/8 bg-white/[0.03] text-sky-50/86 hover:border-white/14 hover:bg-white/10 hover:text-white"
-            }`}
-          >
-            <span>{item.label}</span>
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                active ? "bg-white" : "bg-sky-100/35"
-              }`}
-            />
-          </Link>
-        );
-      })}
-    </nav>
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              data-active={active}
+              className="portal-nav-link flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition"
+            >
+              <span>{item.label}</span>
+              <span className="portal-nav-dot h-2.5 w-2.5 rounded-full" />
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }
