@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { DashboardAuthGate } from "@/app/_components/dashboard-auth-gate";
+import { LogoutButton } from "@/app/_components/logout-button";
 import { PortalNav } from "@/app/_components/portal-nav";
 import { PortalPageHeader } from "@/app/_components/portal-page-header";
 
@@ -26,12 +27,7 @@ export default function DashboardLayout({
                 FreightFlow
               </h1>
             </div>
-            <Link
-              href="/"
-              className="portal-theme-button rounded-full px-3 py-1.5 text-xs font-medium transition hover:opacity-90"
-            >
-              Log out
-            </Link>
+            <LogoutButton />
           </div>
 
           <div className="portal-sidebar-card mt-8 rounded-[28px] p-5">
@@ -72,7 +68,9 @@ export default function DashboardLayout({
             <PortalPageHeader />
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <DashboardAuthGate>{children}</DashboardAuthGate>
+          </div>
         </div>
       </div>
     </div>

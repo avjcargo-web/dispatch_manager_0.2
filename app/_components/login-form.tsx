@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import { signIn } from "./auth-store";
 
 export function LoginForm() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export function LoginForm() {
     event.preventDefault();
 
     startTransition(() => {
+      signIn();
       router.push("/dashboard");
     });
   }
