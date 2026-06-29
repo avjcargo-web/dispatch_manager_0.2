@@ -20,7 +20,7 @@ export function LogoutButton() {
       type="button"
       onClick={handleLogout}
       disabled={isPending}
-      className="portal-theme-button rounded-full px-3 py-1.5 text-xs font-medium transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+      className="portal-theme-button rounded-full w-[150px] px-3 py-1.5 text-xs font-medium transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {isPending ? "Signing out..." : "Log out"}
     </button>
