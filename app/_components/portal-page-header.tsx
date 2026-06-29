@@ -85,7 +85,16 @@ const pageMap: Record<
 
 export function PortalPageHeader() {
   const pathname = usePathname();
-  const content = pageMap[pathname] ?? pageMap["/dashboard"];
+  const content =
+    pageMap[pathname] ??
+    (pathname.startsWith("/dashboard/containers/") &&
+    pathname !== "/dashboard/containers/new"
+      ? {
+          eyebrow: "Container management",
+          title: "Edit container",
+          searchLabel: "Search container, owner, location, customer",
+        }
+      : pageMap["/dashboard"]);
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

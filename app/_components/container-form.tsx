@@ -11,7 +11,12 @@ import {
 } from "react";
 import { getCustomers, subscribeCustomers } from "./customer-store";
 import { FileUploadCard } from "./file-upload-card";
-import { addContainer } from "./container-store";
+import {
+  addContainer,
+  getContainerById,
+  subscribeContainers,
+  updateContainer,
+} from "./container-store";
 import {
   getWarehouseYards,
   subscribeWarehouseYards,
@@ -91,15 +96,108 @@ function createChargeDraft(id: string): ChargeDraft {
   };
 }
 
-export function ContainerForm() {
+function createFilesFromNames(fileNames: string[]) {
+  return fileNames.map(
+    (fileName, index) =>
+      new File([""], fileName, {
+        lastModified: index,
+        type: "application/octet-stream",
+      }),
+  );
+}
+
+type ContainerFormProps = {
+  containerId?: string;
+};
+
+function createInitialFormValue(initialContainer?: {
+  baseRate: string;
+  bookingNumber: string;
+  chassis: string;
+  checkedInNumber: string;
+  containerNumber: string;
+  currencyType: string;
+  customer: string;
+  lfd: string;
+  loadType: "Import" | "Export";
+  notes: string;
+  pickupBookingTime: string;
+  pickupLocation: string;
+  prepull: string;
+  scac: string;
+  sealNumber: string;
+  shippingLine: string;
+  shipEta: string;
+  size: string;
+  storage: string;
+  type: string;
+  waiting: string;
+  warehouse: string;
+  warehouseAddress: string;
+  weightLbs: string;
+}) {
+  if (!initialContainer) {
+    return initialForm;
+  }
+
+  return {
+    baseRate: initialContainer.baseRate,
+    bookingNumber: initialContainer.bookingNumber,
+    chassis: initialContainer.chassis,
+    checkedInNumber: initialContainer.checkedInNumber,
+    containerNumber: initialContainer.containerNumber,
+    currencyType: initialContainer.currencyType,
+    customer: initialContainer.customer,
+    lfd: initialContainer.lfd,
+    loadType: initialContainer.loadType,
+    notes: initialContainer.notes,
+    pickupBookingTime: initialContainer.pickupBookingTime,
+    pickupLocation: initialContainer.pickupLocation,
+    prepull: initialContainer.prepull,
+    scac: initialContainer.scac,
+    sealNumber: initialContainer.sealNumber,
+    shippingLine: initialContainer.shippingLine,
+    shipEta: initialContainer.shipEta,
+    size: initialContainer.size,
+    storage: initialContainer.storage,
+    type: initialContainer.type,
+    waiting: initialContainer.waiting,
+    warehouse: initialContainer.warehouse,
+    warehouseAddress: initialContainer.warehouseAddress,
+    weightLbs: initialContainer.weightLbs,
+  };
+}
+
+function createInitialCharges(initialCharges?: ChargeDraft[]) {
+  return initialCharges && initialCharges.length > 0
+    ? initialCharges
+    : [createChargeDraft("charge-1")];
+}
+
+type ContainerFormContentProps = {
+  containerId?: string;
+  initialContainer?: {
+    additionalCharges: ChargeDraft[];
+    documents: string[];
+  } & ReturnType<typeof createInitialFormValue>;
+};
+
+function ContainerFormContent({
+  containerId,
+  initialContainer,
+}: ContainerFormContentProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [form, setForm] = useState(initialForm);
-  const [containerDocs, setContainerDocs] = useState<File[]>([]);
-  const [additionalCharges, setAdditionalCharges] = useState<ChargeDraft[]>([
-    createChargeDraft("charge-1"),
-  ]);
-  const nextChargeId = useRef(2);
+  const [form, setForm] = useState(() => createInitialFormValue(initialContainer));
+  const [containerDocs, setContainerDocs] = useState<File[]>(() =>
+    createFilesFromNames(initialContainer?.documents ?? []),
+  );
+  const [additionalCharges, setAdditionalCharges] = useState<ChargeDraft[]>(() =>
+    createInitialCharges(initialContainer?.additionalCharges),
+  );
+  const nextChargeId = useRef(
+    Math.max((initialContainer?.additionalCharges.length ?? 0) + 1, 2),
+  );
   const chargeInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingFocusChargeId = useRef<string | null>(null);
   const customers = useSyncExternalStore(
@@ -126,6 +224,7 @@ export function ContainerForm() {
     additionalCharges.filter(
       (charge) => charge.label.trim() || charge.amount.trim(),
     ).length;
+  const isEditing = Boolean(containerId);
 
   useEffect(() => {
     const nextChargeIdToFocus = pendingFocusChargeId.current;
@@ -192,13 +291,21 @@ export function ContainerForm() {
     event.preventDefault();
 
     startTransition(() => {
-      addContainer({
+      const payload = {
         ...form,
         additionalCharges: additionalCharges.filter(
           (charge) => charge.label.trim() || charge.amount.trim(),
         ),
         documents: containerDocs.map((file) => file.name),
-      });
+      };
+
+      if (containerId) {
+        updateContainer(containerId, payload);
+        router.push("/dashboard/containers?updated=1");
+        return;
+      }
+
+      addContainer(payload);
       router.push("/dashboard/containers?created=1");
     });
   }
@@ -212,12 +319,12 @@ export function ContainerForm() {
               Container section
             </p>
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-              Add container
+              {isEditing ? "Edit container" : "Add container"}
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-              Create a complete import or export container job with booking,
-              warehouse, document, and pricing details so operations can move
-              directly into execution.
+              {isEditing
+                ? "Update the booking, warehouse, document, and pricing details while keeping this container record in the dispatch history."
+                : "Create a complete import or export container job with booking, warehouse, document, and pricing details so operations can move directly into execution."}
             </p>
           </div>
 
@@ -241,13 +348,13 @@ export function ContainerForm() {
                     Container details
                   </h4>
                   <p className="mt-2 max-w-2xl text-sm leading-7 text-muted">
-                    Capture the load direction, customer, booking references,
-                    container specs, warehouse handling, and the full document
-                    packet in one place.
+                    {isEditing
+                      ? "Refine the load direction, customer, booking references, and warehouse handling without losing the record already in operations."
+                      : "Capture the load direction, customer, booking references, container specs, warehouse handling, and the full document packet in one place."}
                   </p>
                 </div>
                 <div className="inline-flex rounded-full border border-white/70 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink shadow-sm">
-                  Booking intake
+                  {isEditing ? "Record update" : "Booking intake"}
                 </div>
               </div>
 
@@ -774,16 +881,22 @@ export function ContainerForm() {
 
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(15,108,189,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
-                  The container job, selected document names, and all entered
-                  price lines will be saved in this demo portal and shown
-                  immediately in the container flow.
+                  {isEditing
+                    ? "The updated container job, document names, and all price lines will replace the stored record and refresh immediately in the container flow."
+                    : "The container job, selected document names, and all entered price lines will be saved in this demo portal and shown immediately in the container flow."}
                 </p>
                 <button
                   type="submit"
                   disabled={isPending}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isPending ? "Saving container..." : "Save container"}
+                  {isPending
+                    ? isEditing
+                      ? "Updating container..."
+                      : "Saving container..."
+                    : isEditing
+                      ? "Update container"
+                      : "Save container"}
                 </button>
               </div>
             </div>
@@ -862,5 +975,67 @@ export function ContainerForm() {
         </div>
       </section>
     </main>
+  );
+}
+
+export function ContainerForm({ containerId }: ContainerFormProps) {
+  const isHydrated = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
+  const container = useSyncExternalStore(
+    subscribeContainers,
+    () => (containerId ? getContainerById(containerId) : null),
+    () => null,
+  );
+
+  if (containerId && !isHydrated) {
+    return (
+      <main className="space-y-6 p-5 md:p-7">
+        <section className="rounded-[30px] border border-line bg-panel p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+          <p className="text-sm text-muted">Loading container record...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (containerId && !container) {
+    return (
+      <main className="space-y-6 p-5 md:p-7">
+        <section className="rounded-[30px] border border-line bg-panel p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-accent">
+            Container section
+          </p>
+          <h3 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
+            Container not found
+          </h3>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
+            This container could not be found in the current browser records.
+          </p>
+          <Link
+            href="/dashboard/containers"
+            className="mt-6 inline-flex h-12 items-center justify-center rounded-2xl border border-line px-5 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent"
+          >
+            Back to container list
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <ContainerFormContent
+      containerId={containerId}
+      initialContainer={
+        container
+          ? {
+              ...createInitialFormValue(container),
+              additionalCharges: container.additionalCharges,
+              documents: container.documents,
+            }
+          : undefined
+      }
+    />
   );
 }

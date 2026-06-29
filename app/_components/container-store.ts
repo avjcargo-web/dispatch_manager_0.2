@@ -4,6 +4,12 @@ export type ContainerCharge = {
   label: string;
 };
 
+export type ContainerStatus =
+  | "Available"
+  | "In Transit"
+  | "Under Inspection"
+  | "Cancelled";
+
 export type ContainerRecord = {
   additionalCharges: ContainerCharge[];
   baseRate: string;
@@ -27,7 +33,7 @@ export type ContainerRecord = {
   shippingLine: string;
   shipEta: string;
   size: string;
-  status: "Available" | "In Transit" | "Under Inspection";
+  status: ContainerStatus;
   storage: string;
   type: string;
   waiting: string;
@@ -242,7 +248,8 @@ function normalizeContainerRecord(record: unknown, index: number): ContainerReco
     size: asString(candidate.size, "40 ft"),
     status:
       candidate.status === "In Transit" ||
-      candidate.status === "Under Inspection"
+      candidate.status === "Under Inspection" ||
+      candidate.status === "Cancelled"
         ? candidate.status
         : "Available",
     storage: asString(candidate.storage),
@@ -306,6 +313,15 @@ export function getContainers(): ContainerRecord[] {
   return cachedContainers;
 }
 
+function saveContainers(nextContainers: ContainerRecord[]) {
+  const nextContainersRaw = JSON.stringify(nextContainers);
+
+  cachedContainers = nextContainers;
+  cachedRawContainers = nextContainersRaw;
+  window.localStorage.setItem(STORAGE_KEY, nextContainersRaw);
+  window.dispatchEvent(new Event(CONTAINER_STORAGE_EVENT));
+}
+
 export function addContainer(input: ContainerInput) {
   if (!canUseStorage()) {
     return;
@@ -344,13 +360,82 @@ export function addContainer(input: ContainerInput) {
     weightLbs: input.weightLbs,
   };
 
-  const nextContainers = [nextContainer, ...containers];
-  const nextContainersRaw = JSON.stringify(nextContainers);
+  saveContainers([nextContainer, ...containers]);
+}
 
-  cachedContainers = nextContainers;
-  cachedRawContainers = nextContainersRaw;
-  window.localStorage.setItem(STORAGE_KEY, nextContainersRaw);
-  window.dispatchEvent(new Event(CONTAINER_STORAGE_EVENT));
+export function getContainerById(id: string) {
+  return getContainers().find((container) => container.id === id) ?? null;
+}
+
+export function updateContainer(id: string, input: ContainerInput) {
+  if (!canUseStorage()) {
+    return false;
+  }
+
+  const containers = getContainers();
+  const targetContainer = containers.find((container) => container.id === id);
+
+  if (!targetContainer) {
+    return false;
+  }
+
+  const nextContainers = containers.map((container) =>
+    container.id === id
+      ? {
+          ...container,
+          ...input,
+          additionalCharges: input.additionalCharges,
+          documents: input.documents,
+        }
+      : container,
+  );
+
+  saveContainers(nextContainers);
+  return true;
+}
+
+export function deleteContainer(id: string) {
+  if (!canUseStorage()) {
+    return false;
+  }
+
+  const containers = getContainers();
+  const nextContainers = containers.filter((container) => container.id !== id);
+
+  if (nextContainers.length === containers.length) {
+    return false;
+  }
+
+  saveContainers(nextContainers);
+  return true;
+}
+
+export function updateContainerStatus(id: string, status: ContainerStatus) {
+  if (!canUseStorage()) {
+    return false;
+  }
+
+  const containers = getContainers();
+  let updated = false;
+
+  const nextContainers = containers.map((container) => {
+    if (container.id !== id) {
+      return container;
+    }
+
+    updated = true;
+    return {
+      ...container,
+      status,
+    };
+  });
+
+  if (!updated) {
+    return false;
+  }
+
+  saveContainers(nextContainers);
+  return true;
 }
 
 export function subscribeContainers(callback: () => void) {

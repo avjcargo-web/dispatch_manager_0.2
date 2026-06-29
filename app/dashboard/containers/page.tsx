@@ -8,9 +8,21 @@ export const metadata: Metadata = {
 export default async function ContainersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{
+    cancelled?: string;
+    created?: string;
+    deleted?: string;
+    updated?: string;
+  }>;
 }) {
-  const { created } = await searchParams;
+  const { cancelled, created, deleted, updated } = await searchParams;
 
-  return <ContainersList created={created === "1"} />;
+  return (
+    <ContainersList
+      cancelled={cancelled === "1"}
+      created={created === "1"}
+      deleted={deleted === "1"}
+      updated={updated === "1"}
+    />
+  );
 }
