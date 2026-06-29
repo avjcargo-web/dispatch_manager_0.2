@@ -14,9 +14,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen p-3 md:p-4">
-      <div className="grid min-h-[calc(100vh-1.5rem)] w-full overflow-hidden rounded-[32px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(241,247,255,0.98))] shadow-[0_36px_100px_rgba(15,23,42,0.12)] backdrop-blur-xl xl:grid-cols-[290px_1fr]">
-        <aside className="border-b border-white/10 bg-[linear-gradient(180deg,#08172b_0%,#0c2744_54%,#123a60_100%)] px-5 py-6 text-white xl:border-b-0 xl:border-r xl:border-r-white/10">
+    <div className="min-h-screen p-2 sm:p-3 lg:p-4">
+      <div className="grid min-h-[calc(100vh-1rem)] w-full overflow-hidden rounded-[32px] border border-white/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(241,247,255,0.98))] shadow-[0_36px_100px_rgba(15,23,42,0.12)] backdrop-blur-xl lg:min-h-[calc(100vh-2rem)] lg:grid-cols-[272px_minmax(0,1fr)]">
+        <aside className="border-b border-white/10 bg-[linear-gradient(180deg,#08172b_0%,#0c2744_54%,#123a60_100%)] px-4 py-5 text-white sm:px-5 sm:py-6 lg:border-b-0 lg:border-r lg:border-r-white/10">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-100/80">
@@ -67,8 +67,8 @@ export default function DashboardLayout({
           </div>
         </aside>
 
-        <div className="flex min-h-0 flex-col">
-          <header className="border-b border-line bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(242,247,255,0.96))] px-5 py-5 backdrop-blur-sm md:px-7">
+        <div className="flex min-h-0 min-w-0 flex-col">
+          <header className="border-b border-line bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(242,247,255,0.96))] px-4 py-4 backdrop-blur-sm sm:px-5 md:px-6 lg:px-7">
             <PortalPageHeader />
           </header>
 

@@ -32,33 +32,33 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <main className="relative isolate min-h-screen overflow-hidden">
+    <main className="relative isolate min-h-screen overflow-hidden px-4 py-4 sm:px-6 sm:py-6">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(15,115,216,0.2),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(14,165,233,0.14),transparent_18%),radial-gradient(circle_at_bottom_right,rgba(211,138,18,0.18),transparent_22%)]" />
-      <div className="grid min-h-screen w-full gap-8 px-4 py-4 lg:grid-cols-[1.1fr_0.9fr] lg:px-6 lg:py-6 2xl:px-8">
-        <section className="flex flex-col justify-between rounded-[32px] border border-white/35 bg-[linear-gradient(180deg,#071829_0%,#0c2944_54%,#11456a_100%)] px-7 py-8 text-white shadow-[0_32px_90px_rgba(15,23,42,0.2)] lg:px-10 lg:py-10">
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] w-full max-w-[1600px] gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)]">
+        <section className="flex flex-col justify-between rounded-[32px] border border-white/35 bg-[linear-gradient(180deg,#071829_0%,#0c2944_54%,#11456a_100%)] px-6 py-7 text-white shadow-[0_32px_90px_rgba(15,23,42,0.2)] sm:px-8 sm:py-8 lg:px-10 lg:py-10">
           <div className="space-y-10">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-100/85">
                   FreightFlow Control
                 </p>
-                <h1 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                <h1 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-white sm:text-5xl xl:max-w-xl 2xl:max-w-2xl">
                   Run dispatch, warehousing, and fleet visibility from one
                   calm command center.
                 </h1>
               </div>
-              <div className="hidden rounded-full border border-white/15 bg-white/8 px-4 py-2 text-xs font-medium text-slate-200 lg:block">
+              <div className="hidden rounded-full border border-white/15 bg-white/8 px-4 py-2 text-xs font-medium text-slate-200 md:block">
                 24/7 live operations
               </div>
             </div>
 
-            <p className="max-w-2xl text-base leading-8 text-sky-50/78 sm:text-lg">
+            <p className="max-w-2xl text-base leading-8 text-sky-50/78 sm:text-lg xl:max-w-xl 2xl:max-w-2xl">
               A logistics workspace designed for quick decisions, clear lane
               health, and fewer handoff delays across transport, dock, and
               finance teams.
             </p>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
               {highlights.map((item) => (
                 <article
                   key={item.label}
@@ -76,7 +76,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-10 grid gap-6 rounded-[28px] border border-white/10 bg-white/6 p-6 sm:grid-cols-[1.2fr_0.8fr]">
+          <div className="mt-10 grid gap-6 rounded-[28px] border border-white/10 bg-white/6 p-5 sm:p-6 xl:grid-cols-[1.15fr_0.85fr]">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-100/80">
                 Platform Advantages
@@ -115,14 +115,14 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="flex items-center">
-          <div className="w-full rounded-[32px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(244,249,255,0.98))] p-6 shadow-[0_30px_90px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:p-8">
+        <section className="flex items-center xl:min-h-full">
+          <div className="w-full rounded-[32px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(244,249,255,0.98))] p-6 shadow-[0_30px_90px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:p-8 xl:p-10">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-accent">
                   Portal Login
                 </p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-ink lg:text-[2rem]">
                   Welcome back to operations.
                 </h2>
               </div>

@@ -88,27 +88,27 @@ export function PortalPageHeader() {
   const content = pageMap[pathname] ?? pageMap["/dashboard"];
 
   return (
-    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.26em] text-accent-strong">
           {content.eyebrow}
         </p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight text-ink">
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
           {content.title}
         </h2>
       </div>
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <div className="flex h-auto min-h-11 items-center gap-3 rounded-[22px] border border-line bg-[linear-gradient(180deg,#ffffff,#f4f8ff)] px-4 py-3 text-sm shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+      <div className="flex flex-col gap-3 md:flex-row md:items-stretch lg:max-w-[58rem] lg:flex-1 lg:justify-end">
+        <div className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-[22px] border border-line bg-[linear-gradient(180deg,#ffffff,#f4f8ff)] px-4 py-3 text-sm shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
           <span className="h-2.5 w-2.5 rounded-full bg-accent" />
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-strong">
               Search Workspace
             </p>
-            <p className="text-sm text-muted">{content.searchLabel}</p>
+            <p className="truncate text-sm text-muted">{content.searchLabel}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 rounded-[22px] border border-line bg-[linear-gradient(180deg,#ffffff,#f4f8ff)] px-4 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
+        <div className="flex items-center gap-3 rounded-[22px] border border-line bg-[linear-gradient(180deg,#ffffff,#f4f8ff)] px-4 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] md:self-start">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#d9ecff,#8fd0ff)] text-sm font-semibold text-accent-strong shadow-sm">
             AK
           </div>
