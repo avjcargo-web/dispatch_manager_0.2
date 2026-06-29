@@ -1,12 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
-import {
-  getDrivers,
-  getDriversServerSnapshot,
-  subscribeDrivers,
-} from "./driver-store";
+import type { DriverRecord } from "./driver-store";
 
 function formatDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -16,13 +9,13 @@ function formatDate(isoDate: string) {
   }).format(new Date(isoDate));
 }
 
-export function DriversList({ created = false }: { created?: boolean }) {
-  const drivers = useSyncExternalStore(
-    subscribeDrivers,
-    getDrivers,
-    getDriversServerSnapshot,
-  );
-
+export function DriversList({
+  created = false,
+  drivers,
+}: {
+  created?: boolean;
+  drivers: DriverRecord[];
+}) {
   return (
     <main className="space-y-6 p-5 md:p-7">
       <section className="ops-panel-primary rounded-[30px] p-6">

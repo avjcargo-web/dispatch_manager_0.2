@@ -1,13 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
 import type { WarehouseYardRecord } from "./warehouse-yard-store";
-import {
-  getWarehouseYards,
-  getWarehouseYardsServerSnapshot,
-  subscribeWarehouseYards,
-} from "./warehouse-yard-store";
 
 type FacilityType = "Warehouse" | "Yard";
 
@@ -50,15 +42,12 @@ function formatDate(isoDate: string) {
 export function WarehouseYardsList({
   created = false,
   facilityType,
+  warehouseYards,
 }: {
   created?: boolean;
   facilityType: FacilityType;
+  warehouseYards: WarehouseYardRecord[];
 }) {
-  const warehouseYards = useSyncExternalStore(
-    subscribeWarehouseYards,
-    getWarehouseYards,
-    getWarehouseYardsServerSnapshot,
-  );
   const filteredItems = warehouseYards.filter(
     (item) => item.type === facilityType,
   );
@@ -162,7 +151,12 @@ export function WarehouseYardsList({
                       {item.type}
                     </span>
                   </td>
-                  <td className="ops-copy px-4 py-4 align-top">{item.city}</td>
+                  <td className="px-4 py-4 align-top">
+                    <p className="ops-copy">{item.city}</p>
+                    <p className="ops-subtle mt-1 text-xs">
+                      {item.address || "Address not added"}
+                    </p>
+                  </td>
                   <td className="px-4 py-4 align-top">
                     <p className="ops-heading font-medium">{item.manager}</p>
                     <p className="ops-subtle mt-1 text-xs">

@@ -1,12 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
-import {
-  getChassis,
-  getChassisServerSnapshot,
-  subscribeChassis,
-} from "./chassis-store";
+import type { ChassisRecord } from "./chassis-store";
 
 function formatDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -16,13 +9,13 @@ function formatDate(isoDate: string) {
   }).format(new Date(isoDate));
 }
 
-export function ChassisList({ created = false }: { created?: boolean }) {
-  const chassis = useSyncExternalStore(
-    subscribeChassis,
-    getChassis,
-    getChassisServerSnapshot,
-  );
-
+export function ChassisList({
+  chassis,
+  created = false,
+}: {
+  chassis: ChassisRecord[];
+  created?: boolean;
+}) {
   return (
     <main className="space-y-6 p-5 md:p-7">
       <section className="ops-panel-primary rounded-[30px] p-6">

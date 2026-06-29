@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { FileUploadCard } from "./file-upload-card";
-import { addWarehouseYard } from "./warehouse-yard-store";
 
 type FacilityType = "Warehouse" | "Yard";
 
 const initialForm = {
   name: "",
   city: "",
+  address: "",
   manager: "",
   phone: "",
   email: "",
@@ -74,7 +74,7 @@ const facilityContent: Record<
       "Create a new warehouse profile with site, capacity, manager, and operational details so the location can be used by planning and dispatch teams.",
     docsCountLabel: "Documents selected for warehouse onboarding review.",
     docsSaveLabel:
-      "The warehouse and selected document names will be saved in this demo portal and shown immediately in the warehouse flow.",
+      "The warehouse and selected document names will be saved in MySQL and shown immediately in the warehouse list.",
     docsTitle: "Upload warehouse documents",
     eyebrow: "Warehouse section",
     stepOneDescription:
@@ -91,7 +91,7 @@ const facilityContent: Record<
       "Create a new yard profile with site, capacity, manager, and operational details so the location can be used by planning and dispatch teams.",
     docsCountLabel: "Documents selected for yard onboarding review.",
     docsSaveLabel:
-      "The yard and selected document names will be saved in this demo portal and shown immediately in the yard flow.",
+      "The yard and selected document names will be saved in MySQL and shown immediately in the yard list.",
     docsTitle: "Upload yard documents",
     eyebrow: "Yard section",
     stepOneDescription:
@@ -106,10 +106,11 @@ export function WarehouseYardForm({
   facilityType: FacilityType;
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState(initialForm);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [siteDocs, setSiteDocs] = useState<File[]>([]);
   const [opsDocs, setOpsDocs] = useState<File[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const content = facilityContent[facilityType];
 
   function handleChange(
@@ -124,21 +125,50 @@ export function WarehouseYardForm({
     }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    startTransition(() => {
-      addWarehouseYard({
+    try {
+      const endpoint =
+        facilityType === "Warehouse" ? "/api/warehouses" : "/api/yards";
+      const response = await fetch(endpoint, {
+        body: JSON.stringify({
         ...form,
-        type: facilityType,
+        docks: Number(form.docks) || 0,
         documents: [...siteDocs, ...opsDocs].map((file) => file.name),
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
       });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(
+          error?.message ||
+            `Failed to save ${facilityType.toLowerCase()}.`,
+        );
+      }
+
       router.push(
         facilityType === "Warehouse"
           ? "/dashboard/warehouses?created=1"
           : "/dashboard/yards?created=1",
       );
-    });
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : `Failed to save ${facilityType.toLowerCase()}.`,
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -164,6 +194,12 @@ export function WarehouseYardForm({
             {content.backLabel}
           </Link>
         </div>
+
+        {submitError ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            {submitError}
+          </div>
+        ) : null}
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_360px]">
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -208,6 +244,18 @@ export function WarehouseYardForm({
                     value={form.city}
                     onChange={handleChange}
                     placeholder="Primary city or zone"
+                    className="h-13 rounded-2xl border border-white/70 bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
+                  />
+                </label>
+
+                <label className="grid gap-2 md:col-span-2">
+                  <span className="text-sm font-medium text-ink">Address</span>
+                  <input
+                    required
+                    name="address"
+                    value={form.address}
+                    onChange={handleChange}
+                    placeholder="Street, area, city, and landmark"
                     className="h-13 rounded-2xl border border-white/70 bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
                   />
                 </label>
@@ -363,10 +411,10 @@ export function WarehouseYardForm({
                 </p>
                 <button
                   type="submit"
-                  disabled={isPending}
+                  disabled={isSubmitting}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isPending ? content.buttonSaving : content.buttonSubmit}
+                  {isSubmitting ? content.buttonSaving : content.buttonSubmit}
                 </button>
               </div>
             </div>

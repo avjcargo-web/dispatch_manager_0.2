@@ -1,12 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
-import {
-  getPorts,
-  getPortsServerSnapshot,
-  subscribePorts,
-} from "./port-store";
+import type { PortRecord } from "./port-store";
 
 function formatDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -16,13 +9,13 @@ function formatDate(isoDate: string) {
   }).format(new Date(isoDate));
 }
 
-export function PortsList({ created = false }: { created?: boolean }) {
-  const ports = useSyncExternalStore(
-    subscribePorts,
-    getPorts,
-    getPortsServerSnapshot,
-  );
-
+export function PortsList({
+  created = false,
+  ports,
+}: {
+  created?: boolean;
+  ports: PortRecord[];
+}) {
   return (
     <main className="space-y-6 p-5 md:p-7">
       <section className="ops-panel-primary rounded-[30px] p-6">

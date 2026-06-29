@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { addCustomer } from "./customer-store";
+import { useState } from "react";
 import { FileUploadCard } from "./file-upload-card";
 
 const initialForm = {
@@ -43,10 +42,11 @@ const customerChecklist = [
 
 export function CustomerForm() {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState(initialForm);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [profileDocs, setProfileDocs] = useState<File[]>([]);
   const [commercialDocs, setCommercialDocs] = useState<File[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function handleChange(
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -58,16 +58,38 @@ export function CustomerForm() {
     }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    startTransition(() => {
-      addCustomer({
+    try {
+      const response = await fetch("/api/customers", {
+        body: JSON.stringify({
         ...form,
         documents: [...profileDocs, ...commercialDocs].map((file) => file.name),
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
       });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(error?.message || "Failed to save customer.");
+      }
+
       router.push("/dashboard/customers?created=1");
-    });
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to save customer.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -94,6 +116,12 @@ export function CustomerForm() {
             Back to customer list
           </Link>
         </div>
+
+        {submitError ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            {submitError}
+          </div>
+        ) : null}
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_360px]">
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -284,14 +312,14 @@ export function CustomerForm() {
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(15,108,189,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
                   The customer and selected document names will be saved in
-                  this demo portal and shown immediately in the customer flow.
+                  MySQL and shown immediately in the customer list.
                 </p>
                 <button
                   type="submit"
-                  disabled={isPending}
+                  disabled={isSubmitting}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isPending ? "Saving customer..." : "Save customer"}
+                  {isSubmitting ? "Saving customer..." : "Save customer"}
                 </button>
               </div>
             </div>

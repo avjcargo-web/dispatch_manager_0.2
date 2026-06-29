@@ -51,6 +51,16 @@ const pageMap: Record<
     title: "Add new container",
     searchLabel: "Search container, owner, location, customer",
   },
+  "/dashboard/dispatch": {
+    eyebrow: "Dispatch management",
+    title: "Dispatch board",
+    searchLabel: "Search load, driver, route, customer",
+  },
+  "/dashboard/dispatch/new": {
+    eyebrow: "Dispatch management",
+    title: "Add new dispatch",
+    searchLabel: "Search load, driver, route, customer",
+  },
   "/dashboard/ports": {
     eyebrow: "Port management",
     title: "Port directory",
@@ -87,6 +97,14 @@ export function PortalPageHeader() {
   const pathname = usePathname();
   const content =
     pageMap[pathname] ??
+    (pathname.startsWith("/dashboard/dispatch/") &&
+    pathname !== "/dashboard/dispatch/new"
+      ? {
+          eyebrow: "Dispatch management",
+          title: "Edit dispatch",
+          searchLabel: "Search load, driver, route, customer",
+        }
+      : null) ??
     (pathname.startsWith("/dashboard/containers/") &&
     pathname !== "/dashboard/containers/new"
       ? {

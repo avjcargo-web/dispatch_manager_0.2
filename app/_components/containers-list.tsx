@@ -2,14 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSyncExternalStore, useTransition } from "react";
-import {
-  deleteContainer,
-  getContainers,
-  getContainersServerSnapshot,
-  subscribeContainers,
-  updateContainerStatus,
-} from "./container-store";
+import { useState } from "react";
+import type { ContainerRecord } from "./container-store";
 
 function formatDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -58,6 +52,7 @@ function getStatusClasses(status: string) {
 
 type ContainersListProps = {
   cancelled?: boolean;
+  containers: ContainerRecord[];
   created?: boolean;
   deleted?: boolean;
   updated?: boolean;
@@ -65,17 +60,43 @@ type ContainersListProps = {
 
 export function ContainersList({
   cancelled = false,
+  containers,
   created = false,
   deleted = false,
   updated = false,
 }: ContainersListProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const containers = useSyncExternalStore(
-    subscribeContainers,
-    getContainers,
-    getContainersServerSnapshot,
-  );
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function runAction(
+    id: string,
+    nextPath: string,
+    request: () => Promise<Response>,
+  ) {
+    setActiveActionId(id);
+    setActionError(null);
+
+    try {
+      const response = await request();
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(error?.message || "Container action failed.");
+      }
+
+      router.push(nextPath);
+      router.refresh();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Container action failed.",
+      );
+    } finally {
+      setActiveActionId(null);
+    }
+  }
 
   function handleDelete(id: string, containerNumber: string) {
     const shouldDelete = window.confirm(
@@ -86,10 +107,11 @@ export function ContainersList({
       return;
     }
 
-    startTransition(() => {
-      deleteContainer(id);
-      router.push("/dashboard/containers?deleted=1");
-    });
+    void runAction(id, "/dashboard/containers?deleted=1", () =>
+      fetch(`/api/containers/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      }),
+    );
   }
 
   function handleCancel(id: string, containerNumber: string) {
@@ -101,10 +123,15 @@ export function ContainersList({
       return;
     }
 
-    startTransition(() => {
-      updateContainerStatus(id, "Cancelled");
-      router.push("/dashboard/containers?cancelled=1");
-    });
+    void runAction(id, "/dashboard/containers?cancelled=1", () =>
+      fetch(`/api/containers/${encodeURIComponent(id)}`, {
+        body: JSON.stringify({ status: "Cancelled" }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "PATCH",
+      }),
+    );
   }
 
   return (
@@ -151,6 +178,11 @@ export function ContainersList({
         {cancelled ? (
           <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-500/12 px-4 py-3 text-sm text-amber-200">
             Container has been marked as cancelled and kept in the records.
+          </div>
+        ) : null}
+        {actionError ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            {actionError}
           </div>
         ) : null}
 
@@ -215,6 +247,9 @@ export function ContainersList({
                   </p>
                   <p className="ops-subtle mt-1 text-sm">
                     Booking: {item.bookingNumber || "Not added"}
+                  </p>
+                  <p className="ops-subtle mt-1 text-sm">
+                    Port: {item.port || "Not selected"}
                   </p>
                 </div>
 
@@ -301,19 +336,23 @@ export function ContainersList({
                 </Link>
                 <button
                   type="button"
-                  disabled={isPending || item.status === "Cancelled"}
+                  disabled={activeActionId !== null || item.status === "Cancelled"}
                   onClick={() => handleCancel(item.id, item.containerNumber)}
                   className="ops-action-chip ops-action-cancel inline-flex h-11 items-center justify-center rounded-2xl px-4 text-sm font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  {item.status === "Cancelled" ? "Cancelled" : "Cancel load"}
+                  {activeActionId === item.id && item.status !== "Cancelled"
+                    ? "Updating..."
+                    : item.status === "Cancelled"
+                      ? "Cancelled"
+                      : "Cancel load"}
                 </button>
                 <button
                   type="button"
-                  disabled={isPending}
+                  disabled={activeActionId !== null}
                   onClick={() => handleDelete(item.id, item.containerNumber)}
                   className="ops-action-chip ops-action-delete inline-flex h-11 items-center justify-center rounded-2xl px-4 text-sm font-semibold transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  Delete
+                  {activeActionId === item.id ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </article>
@@ -345,6 +384,9 @@ export function ContainersList({
                     <p className="ops-heading font-semibold">{item.containerNumber}</p>
                     <p className="ops-subtle mt-1 text-xs">
                       {item.type} / {item.size}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">
+                      Port: {item.port || "Not selected"}
                     </p>
                     <p className="ops-subtle mt-1 text-xs">
                       Booking: {item.bookingNumber || "Not added"}
@@ -417,19 +459,25 @@ export function ContainersList({
                       </Link>
                       <button
                         type="button"
-                        disabled={isPending || item.status === "Cancelled"}
+                        disabled={
+                          activeActionId !== null || item.status === "Cancelled"
+                        }
                         onClick={() => handleCancel(item.id, item.containerNumber)}
                         className="ops-action-chip ops-action-cancel inline-flex h-10 items-center justify-center rounded-2xl px-3 text-xs font-semibold uppercase tracking-[0.12em] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
                       >
-                        {item.status === "Cancelled" ? "Cancelled" : "Cancel"}
+                        {activeActionId === item.id && item.status !== "Cancelled"
+                          ? "Updating"
+                          : item.status === "Cancelled"
+                            ? "Cancelled"
+                            : "Cancel"}
                       </button>
                       <button
                         type="button"
-                        disabled={isPending}
+                        disabled={activeActionId !== null}
                         onClick={() => handleDelete(item.id, item.containerNumber)}
                         className="ops-action-chip ops-action-delete inline-flex h-10 items-center justify-center rounded-2xl px-3 text-xs font-semibold uppercase tracking-[0.12em] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
                       >
-                        Delete
+                        {activeActionId === item.id ? "Deleting" : "Delete"}
                       </button>
                     </div>
                   </td>

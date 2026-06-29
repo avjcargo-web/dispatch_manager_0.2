@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { addDriver } from "./driver-store";
+import { useState } from "react";
 import { FileUploadCard } from "./file-upload-card";
 
 const initialForm = {
@@ -44,10 +43,11 @@ const driverChecklist = [
 
 export function DriverForm() {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState(initialForm);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [licenseDocs, setLicenseDocs] = useState<File[]>([]);
   const [complianceDocs, setComplianceDocs] = useState<File[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function handleChange(
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -59,16 +59,38 @@ export function DriverForm() {
     }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    startTransition(() => {
-      addDriver({
+    try {
+      const response = await fetch("/api/drivers", {
+        body: JSON.stringify({
         ...form,
         documents: [...licenseDocs, ...complianceDocs].map((file) => file.name),
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
       });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(error?.message || "Failed to save driver.");
+      }
+
       router.push("/dashboard/drivers?created=1");
-    });
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to save driver.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -95,6 +117,12 @@ export function DriverForm() {
             Back to driver list
           </Link>
         </div>
+
+        {submitError ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            {submitError}
+          </div>
+        ) : null}
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_360px]">
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -302,15 +330,15 @@ export function DriverForm() {
 
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
-                  The driver and selected document names will be saved in this
-                  demo portal and shown immediately in the driver flow.
+                  The driver and selected document names will be saved in MySQL
+                  and shown immediately in the driver list.
                 </p>
                 <button
                   type="submit"
-                  disabled={isPending}
+                  disabled={isSubmitting}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isPending ? "Saving driver..." : "Save driver"}
+                  {isSubmitting ? "Saving driver..." : "Save driver"}
                 </button>
               </div>
             </div>

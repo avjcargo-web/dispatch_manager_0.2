@@ -3,6 +3,7 @@ export type WarehouseYardRecord = {
   name: string;
   type: "Warehouse" | "Yard";
   city: string;
+  address: string;
   manager: string;
   phone: string;
   email: string;
@@ -19,6 +20,7 @@ export type WarehouseYardInput = {
   name: string;
   type: "Warehouse" | "Yard";
   city: string;
+  address: string;
   manager: string;
   phone: string;
   email: string;
@@ -38,6 +40,7 @@ const seedWarehouseYards: WarehouseYardRecord[] = [
     name: "Central Cross-Dock",
     type: "Warehouse",
     city: "Mumbai",
+    address: "Wadala Logistics Estate, Mumbai",
     manager: "Neha Kulkarni",
     phone: "+91 98190 33661",
     email: "neha.kulkarni@freightflow.com",
@@ -54,6 +57,7 @@ const seedWarehouseYards: WarehouseYardRecord[] = [
     name: "North Staging Yard",
     type: "Yard",
     city: "Delhi",
+    address: "Outer Ring Freight Belt, Delhi",
     manager: "Ritesh Arora",
     phone: "+91 98911 44227",
     email: "ritesh.arora@freightflow.com",
@@ -70,6 +74,7 @@ const seedWarehouseYards: WarehouseYardRecord[] = [
     name: "South Cold Storage Hub",
     type: "Warehouse",
     city: "Bengaluru",
+    address: "Airport Cargo Corridor, Bengaluru",
     manager: "Lavanya Rao",
     phone: "+91 98450 11981",
     email: "lavanya.rao@freightflow.com",
@@ -158,6 +163,7 @@ export function addWarehouseYard(input: WarehouseYardInput) {
     name: input.name,
     type: input.type,
     city: input.city,
+    address: input.address,
     manager: input.manager,
     phone: input.phone,
     email: input.email,

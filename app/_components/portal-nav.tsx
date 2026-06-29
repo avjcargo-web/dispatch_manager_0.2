@@ -10,6 +10,7 @@ const primaryNav = [
   { label: "Driver", href: "/dashboard/drivers" },
   { label: "Chassis", href: "/dashboard/chassis" },
   { label: "Container", href: "/dashboard/containers" },
+  { label: "Dispatch", href: "/dashboard/dispatch" },
   { label: "Port", href: "/dashboard/ports" },
   { label: "Warehouse", href: "/dashboard/warehouses" },
   { label: "Yard", href: "/dashboard/yards" },

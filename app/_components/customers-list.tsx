@@ -1,12 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
-import {
-  getCustomers,
-  getCustomersServerSnapshot,
-  subscribeCustomers,
-} from "./customer-store";
+import type { CustomerRecord } from "./customer-store";
 
 function formatDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -16,13 +9,13 @@ function formatDate(isoDate: string) {
   }).format(new Date(isoDate));
 }
 
-export function CustomersList({ created = false }: { created?: boolean }) {
-  const customers = useSyncExternalStore(
-    subscribeCustomers,
-    getCustomers,
-    getCustomersServerSnapshot,
-  );
-
+export function CustomersList({
+  created = false,
+  customers,
+}: {
+  created?: boolean;
+  customers: CustomerRecord[];
+}) {
   return (
     <main className="space-y-6 p-5 md:p-7">
       <section className="ops-panel-primary rounded-[30px] p-6">

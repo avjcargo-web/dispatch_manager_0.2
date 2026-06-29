@@ -25,6 +25,7 @@ export type ContainerRecord = {
   lfd: string;
   loadType: "Import" | "Export";
   notes: string;
+  port: string;
   pickupBookingTime: string;
   pickupLocation: string;
   prepull: string;
@@ -55,6 +56,7 @@ export type ContainerInput = {
   lfd: string;
   loadType: "Import" | "Export";
   notes: string;
+  port: string;
   pickupBookingTime: string;
   pickupLocation: string;
   prepull: string;
@@ -93,6 +95,7 @@ const seedContainers: ContainerRecord[] = [
     lfd: "2026-06-30",
     loadType: "Import",
     notes: "Allocated for western retail replenishment lane.",
+    port: "Jawaharlal Nehru Port",
     pickupBookingTime: "2026-06-28T09:30",
     pickupLocation: "Nhava Sheva Pickup Zone 3",
     prepull: "95",
@@ -124,6 +127,7 @@ const seedContainers: ContainerRecord[] = [
     lfd: "2026-07-02",
     loadType: "Export",
     notes: "Ready for cold-chain allocation from Bengaluru hub.",
+    port: "Chennai Port",
     pickupBookingTime: "2026-06-29T05:30",
     pickupLocation: "South Cold Storage Hub Gate 2",
     prepull: "65",
@@ -157,6 +161,7 @@ const seedContainers: ContainerRecord[] = [
     lfd: "2026-07-04",
     loadType: "Export",
     notes: "Pending structural review before loading heavy machinery.",
+    port: "Visakhapatnam Port",
     pickupBookingTime: "2026-06-30T14:15",
     pickupLocation: "North Staging Yard Bay 6",
     prepull: "110",
@@ -238,6 +243,7 @@ function normalizeContainerRecord(record: unknown, index: number): ContainerReco
     lfd: asString(candidate.lfd),
     loadType: candidate.loadType === "Export" ? "Export" : "Import",
     notes: asString(candidate.notes),
+    port: asString(candidate.port),
     pickupBookingTime: asString(candidate.pickupBookingTime),
     pickupLocation: asString(candidate.pickupLocation ?? candidate.currentLocation),
     prepull: asString(candidate.prepull),
@@ -347,6 +353,7 @@ export function addContainer(input: ContainerInput) {
     lfd: input.lfd,
     loadType: input.loadType,
     notes: input.notes,
+    port: input.port,
     pickupBookingTime: input.pickupBookingTime,
     pickupLocation: input.pickupLocation,
     prepull: input.prepull,

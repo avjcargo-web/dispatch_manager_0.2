@@ -2,30 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
-import {
-  getCustomers,
-  getCustomersServerSnapshot,
-  subscribeCustomers,
-} from "./customer-store";
+import { useEffect, useRef, useState } from "react";
+import type { ContainerRecord } from "./container-store";
+import type { CustomerRecord } from "./customer-store";
 import { FileUploadCard } from "./file-upload-card";
-import {
-  addContainer,
-  getContainerById,
-  subscribeContainers,
-  updateContainer,
-} from "./container-store";
-import {
-  getWarehouseYards,
-  getWarehouseYardsServerSnapshot,
-  subscribeWarehouseYards,
-} from "./warehouse-yard-store";
+import type { PortRecord } from "./port-store";
+import type { WarehouseYardRecord } from "./warehouse-yard-store";
 
 const initialForm = {
   baseRate: "",
@@ -38,6 +20,7 @@ const initialForm = {
   lfd: "",
   loadType: "Import" as "Import" | "Export",
   notes: "",
+  port: "",
   pickupBookingTime: "",
   pickupLocation: "",
   prepull: "",
@@ -113,7 +96,25 @@ function createFilesFromNames(fileNames: string[]) {
 
 type ContainerFormProps = {
   containerId?: string;
+  customers: CustomerRecord[];
+  initialContainer?: ContainerRecord;
+  ports: PortRecord[];
+  warehouses: WarehouseYardRecord[];
 };
+
+function formatPortLocation(port?: Pick<PortRecord, "city" | "country" | "name"> | null) {
+  if (!port) {
+    return "";
+  }
+
+  return [port.name, port.city, port.country].filter(Boolean).join(", ");
+}
+
+function formatWarehouseAddress(
+  warehouse?: Pick<WarehouseYardRecord, "address" | "city"> | null,
+) {
+  return warehouse?.address || warehouse?.city || "";
+}
 
 function createInitialFormValue(initialContainer?: {
   baseRate: string;
@@ -126,6 +127,7 @@ function createInitialFormValue(initialContainer?: {
   lfd: string;
   loadType: "Import" | "Export";
   notes: string;
+  port: string;
   pickupBookingTime: string;
   pickupLocation: string;
   prepull: string;
@@ -156,6 +158,7 @@ function createInitialFormValue(initialContainer?: {
     lfd: initialContainer.lfd,
     loadType: initialContainer.loadType,
     notes: initialContainer.notes,
+    port: initialContainer.port,
     pickupBookingTime: initialContainer.pickupBookingTime,
     pickupLocation: initialContainer.pickupLocation,
     prepull: initialContainer.prepull,
@@ -181,18 +184,24 @@ function createInitialCharges(initialCharges?: ChargeDraft[]) {
 
 type ContainerFormContentProps = {
   containerId?: string;
+  customers: CustomerRecord[];
   initialContainer?: {
     additionalCharges: ChargeDraft[];
     documents: string[];
   } & ReturnType<typeof createInitialFormValue>;
+  ports: PortRecord[];
+  warehouses: WarehouseYardRecord[];
 };
 
 function ContainerFormContent({
   containerId,
+  customers,
   initialContainer,
+  ports,
+  warehouses,
 }: ContainerFormContentProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState(() => createInitialFormValue(initialContainer));
   const [containerDocs, setContainerDocs] = useState<File[]>(() =>
     createFilesFromNames(initialContainer?.documents ?? []),
@@ -205,19 +214,11 @@ function ContainerFormContent({
   );
   const chargeInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const pendingFocusChargeId = useRef<string | null>(null);
-  const customers = useSyncExternalStore(
-    subscribeCustomers,
-    getCustomers,
-    getCustomersServerSnapshot,
-  );
-  const warehouseYards = useSyncExternalStore(
-    subscribeWarehouseYards,
-    getWarehouseYards,
-    getWarehouseYardsServerSnapshot,
-  );
-  const warehouseOptions = warehouseYards.filter(
-    (item) => item.type === "Warehouse",
-  );
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const warehouseOptions = warehouses.filter((item) => item.type === "Warehouse");
+  const selectedPort = ports.find((item) => item.name === form.port) ?? null;
+  const selectedWarehouse =
+    warehouseOptions.find((item) => item.name === form.warehouse) ?? null;
   const trackedChargesCount =
     [
       form.baseRate,
@@ -262,6 +263,32 @@ function ContainerFormContent({
     }));
   }
 
+  function handlePortChange(portName: string) {
+    const nextPort = ports.find((item) => item.name === portName) ?? null;
+    const currentPortLocation = formatPortLocation(selectedPort);
+    const nextPortLocation = formatPortLocation(nextPort);
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      pickupLocation:
+        !currentForm.pickupLocation || currentForm.pickupLocation === currentPortLocation
+          ? nextPortLocation
+          : currentForm.pickupLocation,
+      port: portName,
+    }));
+  }
+
+  function handleWarehouseChange(warehouseName: string) {
+    const nextWarehouse =
+      warehouseOptions.find((item) => item.name === warehouseName) ?? null;
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      warehouse: warehouseName,
+      warehouseAddress: formatWarehouseAddress(nextWarehouse),
+    }));
+  }
+
   function handleChargeChange(
     chargeId: string,
     field: "amount" | "label",
@@ -292,10 +319,12 @@ function ContainerFormContent({
     );
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-    startTransition(() => {
+    try {
       const payload = {
         ...form,
         additionalCharges: additionalCharges.filter(
@@ -303,16 +332,38 @@ function ContainerFormContent({
         ),
         documents: containerDocs.map((file) => file.name),
       };
+      const response = await fetch(
+        containerId
+          ? `/api/containers/${encodeURIComponent(containerId)}`
+          : "/api/containers",
+        {
+          body: JSON.stringify(payload),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: containerId ? "PATCH" : "POST",
+        },
+      );
 
-      if (containerId) {
-        updateContainer(containerId, payload);
-        router.push("/dashboard/containers?updated=1");
-        return;
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(error?.message || "Failed to save container.");
       }
 
-      addContainer(payload);
-      router.push("/dashboard/containers?created=1");
-    });
+      router.push(
+        containerId
+          ? "/dashboard/containers?updated=1"
+          : "/dashboard/containers?created=1",
+      );
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to save container.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -340,6 +391,12 @@ function ContainerFormContent({
             Back to container list
           </Link>
         </div>
+
+        {submitError ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            {submitError}
+          </div>
+        ) : null}
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_360px]">
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -434,6 +491,24 @@ function ContainerFormContent({
                       placeholder="e.g. MSCU-482190-3"
                       className={inputClassName}
                     />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-ink">Port</span>
+                    <select
+                      required
+                      name="port"
+                      value={form.port}
+                      onChange={(event) => handlePortChange(event.target.value)}
+                      className={inputClassName}
+                    >
+                      <option value="">Select port</option>
+                      {ports.map((port) => (
+                        <option key={port.id} value={port.name}>
+                          {port.name} - {port.city}, {port.country}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="grid gap-2">
@@ -551,6 +626,12 @@ function ContainerFormContent({
                       placeholder="Port gate, depot, or yard pickup point"
                       className={inputClassName}
                     />
+                    {selectedPort ? (
+                      <span className="text-xs leading-5 text-muted">
+                        Port details loaded from MySQL: {selectedPort.code} /{" "}
+                        {selectedPort.terminalType} / {selectedPort.authority}
+                      </span>
+                    ) : null}
                   </label>
 
                   <label className="grid gap-2">
@@ -575,7 +656,7 @@ function ContainerFormContent({
                       required
                       name="warehouse"
                       value={form.warehouse}
-                      onChange={handleChange}
+                      onChange={(event) => handleWarehouseChange(event.target.value)}
                       className={inputClassName}
                     >
                       <option value="">Select warehouse</option>
@@ -598,7 +679,13 @@ function ContainerFormContent({
                       onChange={handleChange}
                       placeholder="Street, area, city, and landmark"
                       className={inputClassName}
+                      readOnly={Boolean(selectedWarehouse?.address)}
                     />
+                    {selectedWarehouse?.address ? (
+                      <span className="text-xs leading-5 text-muted">
+                        Auto-filled from the selected warehouse record.
+                      </span>
+                    ) : null}
                   </label>
 
                   <label className="grid gap-2">
@@ -887,15 +974,15 @@ function ContainerFormContent({
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(15,108,189,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
                   {isEditing
-                    ? "The updated container job, document names, and all price lines will replace the stored record and refresh immediately in the container flow."
-                    : "The container job, selected document names, and all entered price lines will be saved in this demo portal and shown immediately in the container flow."}
+                    ? "The updated container job, document names, and all price lines will replace the stored MySQL record and refresh immediately in the container list."
+                    : "The container job, selected document names, and all entered price lines will be saved in MySQL and shown immediately in the container list."}
                 </p>
                 <button
                   type="submit"
-                  disabled={isPending}
+                  disabled={isSubmitting}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isPending
+                  {isSubmitting
                     ? isEditing
                       ? "Updating container..."
                       : "Saving container..."
@@ -983,29 +1070,14 @@ function ContainerFormContent({
   );
 }
 
-export function ContainerForm({ containerId }: ContainerFormProps) {
-  const isHydrated = useSyncExternalStore(
-    () => () => undefined,
-    () => true,
-    () => false,
-  );
-  const container = useSyncExternalStore(
-    subscribeContainers,
-    () => (containerId ? getContainerById(containerId) : null),
-    () => null,
-  );
-
-  if (containerId && !isHydrated) {
-    return (
-      <main className="space-y-6 p-5 md:p-7">
-        <section className="rounded-[30px] border border-line bg-panel p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-          <p className="text-sm text-muted">Loading container record...</p>
-        </section>
-      </main>
-    );
-  }
-
-  if (containerId && !container) {
+export function ContainerForm({
+  containerId,
+  customers,
+  initialContainer,
+  ports,
+  warehouses,
+}: ContainerFormProps) {
+  if (containerId && !initialContainer) {
     return (
       <main className="space-y-6 p-5 md:p-7">
         <section className="rounded-[30px] border border-line bg-panel p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
@@ -1016,7 +1088,7 @@ export function ContainerForm({ containerId }: ContainerFormProps) {
             Container not found
           </h3>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-            This container could not be found in the current browser records.
+            This container could not be found in the MySQL records.
           </p>
           <Link
             href="/dashboard/containers"
@@ -1032,15 +1104,18 @@ export function ContainerForm({ containerId }: ContainerFormProps) {
   return (
     <ContainerFormContent
       containerId={containerId}
+      customers={customers}
       initialContainer={
-        container
+        initialContainer
           ? {
-              ...createInitialFormValue(container),
-              additionalCharges: container.additionalCharges,
-              documents: container.documents,
+              ...createInitialFormValue(initialContainer),
+              additionalCharges: initialContainer.additionalCharges,
+              documents: initialContainer.documents,
             }
           : undefined
       }
+      ports={ports}
+      warehouses={warehouses}
     />
   );
 }
