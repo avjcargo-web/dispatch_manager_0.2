@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fbff;
+  --foreground: #0b1c30;
+  --shell: #edf5ff;
+  --panel: #ffffff;
+  --panel-muted: #eef4fb;
+  --ink: #0b1c30;
+  --muted: #496077;
+  --line: rgba(117, 137, 163, 0.34);
+  --accent: #0f73d8;
+  --accent-soft: #d9ecff;
+  --accent-strong: #0a4f98;
+  --signal: #d38a12;
+  --signal-soft: #fff0c9;
+  --success: #0f8a61;
+  --success-soft: #dcf8ea;
+  --portal-font-sans: var(--font-roboto), "Segoe UI", "Trebuchet MS", sans-serif;
+  --portal-font-mono: "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-shell: var(--shell);
+  --color-panel: var(--panel);
+  --color-panel-muted: var(--panel-muted);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+  --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --font-sans: var(--portal-font-sans);
+  --font-mono: var(--portal-font-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+  background:
+    radial-gradient(circle at top left, rgba(15, 115, 216, 0.18), transparent 32%),
+    radial-gradient(circle at 85% 12%, rgba(14, 165, 233, 0.14), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(211, 138, 18, 0.12), transparent 20%),
+    var(--shell);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04)),
+    transparent;
+  color: var(--ink);
+  font-family: var(--portal-font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(15, 115, 216, 0.24);
+  color: #06111f;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #7b8ea4;
+}
