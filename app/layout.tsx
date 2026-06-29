@@ -21,7 +21,10 @@ export default function RootLayout({
       data-portal-theme="dark"
       className="h-full antialiased"
     >
-      <body className="min-h-full font-sans text-foreground">
+      <body
+        suppressHydrationWarning
+        className="min-h-full font-sans text-foreground"
+      >
         {children}
       </body>
     </html>

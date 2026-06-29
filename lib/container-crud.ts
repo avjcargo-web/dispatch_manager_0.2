@@ -181,6 +181,10 @@ function createId(prefix: string) {
   )}`;
 }
 
+function toSqlDateTime(value: string) {
+  return value.slice(0, 19).replace("T", " ");
+}
+
 function toIsoString(value: Date | string) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
@@ -205,14 +209,10 @@ async function ensureColumnExists(
   }
 }
 
-async function ensureContainersTable() {
-  await connection();
+async function initializeContainersTable() {
+  const pool = getMySqlPool();
 
-  if (!globalThis.__freightflow_containers_table_ready__) {
-    globalThis.__freightflow_containers_table_ready__ = (async () => {
-      const pool = getMySqlPool();
-
-      await pool.query(`
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS containers (
           id VARCHAR(32) PRIMARY KEY,
           container_number VARCHAR(128) NOT NULL,
@@ -241,20 +241,37 @@ async function ensureContainersTable() {
           waiting VARCHAR(64) NOT NULL,
           status ENUM('Available', 'In Transit', 'Under Inspection', 'Cancelled') NOT NULL DEFAULT 'Available',
           notes TEXT NOT NULL,
-          additional_charges JSON NOT NULL,
-          documents JSON NOT NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          additional_charges LONGTEXT NOT NULL,
+          documents LONGTEXT NOT NULL,
+          created_at DATETIME NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
 
-      await ensureColumnExists(
-        "containers",
-        "port",
-        "port VARCHAR(191) NOT NULL DEFAULT '' AFTER customer",
-      );
-    })();
+  await ensureColumnExists(
+    "containers",
+    "port",
+    "port VARCHAR(191) NOT NULL DEFAULT '' AFTER customer",
+  );
+}
+
+async function ensureContainersTable() {
+  await connection();
+
+  if (globalThis.__freightflow_containers_table_ready__) {
+    try {
+      await globalThis.__freightflow_containers_table_ready__;
+      return;
+    } catch {
+      globalThis.__freightflow_containers_table_ready__ = undefined;
+    }
   }
+
+  globalThis.__freightflow_containers_table_ready__ =
+    initializeContainersTable().catch((error) => {
+      globalThis.__freightflow_containers_table_ready__ = undefined;
+      throw error;
+    });
 
   await globalThis.__freightflow_containers_table_ready__;
 }
@@ -341,12 +358,13 @@ export async function createContainer(input: ContainerCreateInput) {
 
   await pool.execute(
     `INSERT INTO containers
-      (id, container_number, load_type, customer, port, booking_number, type, size, shipping_line, scac, seal_number, ship_eta, lfd, pickup_location, pickup_booking_time, warehouse, warehouse_address, checked_in_number, weight_lbs, currency_type, base_rate, prepull, chassis, storage, waiting, status, notes, additional_charges, documents)
+      (id, container_number, load_type, customer, port, booking_number, type, size, shipping_line, scac, seal_number, ship_eta, lfd, pickup_location, pickup_booking_time, warehouse, warehouse_address, checked_in_number, weight_lbs, currency_type, base_rate, prepull, chassis, storage, waiting, status, notes, additional_charges, documents, created_at)
      VALUES
-      (:id, :containerNumber, :loadType, :customer, :port, :bookingNumber, :type, :size, :shippingLine, :scac, :sealNumber, :shipEta, :lfd, :pickupLocation, :pickupBookingTime, :warehouse, :warehouseAddress, :checkedInNumber, :weightLbs, :currencyType, :baseRate, :prepull, :chassis, :storage, :waiting, :status, :notes, :additionalCharges, :documents)`,
+      (:id, :containerNumber, :loadType, :customer, :port, :bookingNumber, :type, :size, :shippingLine, :scac, :sealNumber, :shipEta, :lfd, :pickupLocation, :pickupBookingTime, :warehouse, :warehouseAddress, :checkedInNumber, :weightLbs, :currencyType, :baseRate, :prepull, :chassis, :storage, :waiting, :status, :notes, :additionalCharges, :documents, :createdAt)`,
     {
       ...record,
       additionalCharges: JSON.stringify(record.additionalCharges),
+      createdAt: toSqlDateTime(record.createdAt),
       documents: JSON.stringify(record.documents),
     },
   );

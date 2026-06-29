@@ -161,6 +161,10 @@ function createId(prefix: string) {
   )}`;
 }
 
+function toSqlDateTime(value: string) {
+  return value.slice(0, 19).replace("T", " ");
+}
+
 function toIsoString(value: Date | string) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
@@ -199,14 +203,49 @@ async function ensureColumnExists(
   }
 }
 
-async function ensureDispatchesTable() {
-  await connection();
+async function ensureUpdatedAtColumn() {
+  const pool = getMySqlPool();
+  const [rows] = await pool.execute<
+    Array<
+      RowDataPacket & {
+        column_default: string | null;
+        data_type: string;
+        extra: string;
+      }
+    >
+  >(
+    `SELECT
+       DATA_TYPE AS data_type,
+       COLUMN_DEFAULT AS column_default,
+       EXTRA AS extra
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'dispatches'
+       AND COLUMN_NAME = 'updated_at'
+     LIMIT 1`,
+  );
 
-  if (!globalThis.__freightflow_dispatch_table_ready__) {
-    globalThis.__freightflow_dispatch_table_ready__ = (async () => {
-      const pool = getMySqlPool();
+  const column = rows[0];
 
-      await pool.query(`
+  if (
+    !column ||
+    column.data_type !== "timestamp" ||
+    column.column_default !== "CURRENT_TIMESTAMP" ||
+    !column.extra.toLowerCase().includes("on update current_timestamp")
+  ) {
+    await pool.query(`
+      ALTER TABLE dispatches
+      MODIFY COLUMN updated_at TIMESTAMP NOT NULL
+      DEFAULT CURRENT_TIMESTAMP
+      ON UPDATE CURRENT_TIMESTAMP
+    `);
+  }
+}
+
+async function initializeDispatchesTable() {
+  const pool = getMySqlPool();
+
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS dispatches (
           id VARCHAR(32) PRIMARY KEY,
           load_number VARCHAR(128) NOT NULL,
@@ -233,44 +272,62 @@ async function ensureDispatchesTable() {
           last_known_longitude DECIMAL(10, 7) NULL,
           last_location_recorded_at DATETIME NULL,
           notes TEXT NOT NULL,
-          documents JSON NOT NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          documents LONGTEXT NOT NULL,
+          created_at DATETIME NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
 
-      await ensureColumnExists(
-        "dispatches",
-        "route_track",
-        "route_track VARCHAR(255) NOT NULL DEFAULT '' AFTER status",
-      );
-      await ensureColumnExists(
-        "dispatches",
-        "tracking_active",
-        "tracking_active TINYINT(1) NOT NULL DEFAULT 0 AFTER route_track",
-      );
-      await ensureColumnExists(
-        "dispatches",
-        "activated_at",
-        "activated_at DATETIME NULL AFTER tracking_active",
-      );
-      await ensureColumnExists(
-        "dispatches",
-        "last_known_latitude",
-        "last_known_latitude DECIMAL(10, 7) NULL AFTER activated_at",
-      );
-      await ensureColumnExists(
-        "dispatches",
-        "last_known_longitude",
-        "last_known_longitude DECIMAL(10, 7) NULL AFTER last_known_latitude",
-      );
-      await ensureColumnExists(
-        "dispatches",
-        "last_location_recorded_at",
-        "last_location_recorded_at DATETIME NULL AFTER last_known_longitude",
-      );
-    })();
+  await ensureColumnExists(
+    "dispatches",
+    "route_track",
+    "route_track VARCHAR(255) NOT NULL DEFAULT '' AFTER status",
+  );
+  await ensureColumnExists(
+    "dispatches",
+    "tracking_active",
+    "tracking_active TINYINT(1) NOT NULL DEFAULT 0 AFTER route_track",
+  );
+  await ensureColumnExists(
+    "dispatches",
+    "activated_at",
+    "activated_at DATETIME NULL AFTER tracking_active",
+  );
+  await ensureColumnExists(
+    "dispatches",
+    "last_known_latitude",
+    "last_known_latitude DECIMAL(10, 7) NULL AFTER activated_at",
+  );
+  await ensureColumnExists(
+    "dispatches",
+    "last_known_longitude",
+    "last_known_longitude DECIMAL(10, 7) NULL AFTER last_known_latitude",
+  );
+  await ensureColumnExists(
+    "dispatches",
+    "last_location_recorded_at",
+    "last_location_recorded_at DATETIME NULL AFTER last_known_longitude",
+  );
+  await ensureUpdatedAtColumn();
+}
+
+async function ensureDispatchesTable() {
+  await connection();
+
+  if (globalThis.__freightflow_dispatch_table_ready__) {
+    try {
+      await globalThis.__freightflow_dispatch_table_ready__;
+      return;
+    } catch {
+      globalThis.__freightflow_dispatch_table_ready__ = undefined;
+    }
   }
+
+  globalThis.__freightflow_dispatch_table_ready__ =
+    initializeDispatchesTable().catch((error) => {
+      globalThis.__freightflow_dispatch_table_ready__ = undefined;
+      throw error;
+    });
 
   await globalThis.__freightflow_dispatch_table_ready__;
 }
@@ -361,14 +418,15 @@ export async function createDispatch(input: DispatchCreateInput) {
 
   await pool.execute(
     `INSERT INTO dispatches
-      (id, load_number, container_number, dispatch_type, load_type, customer, driver, dispatcher, equipment_type, chassis_number, origin, destination, pickup_window, delivery_window, currency_type, rate, priority, status, route_track, tracking_active, activated_at, last_known_latitude, last_known_longitude, last_location_recorded_at, notes, documents)
+      (id, load_number, container_number, dispatch_type, load_type, customer, driver, dispatcher, equipment_type, chassis_number, origin, destination, pickup_window, delivery_window, currency_type, rate, priority, status, route_track, tracking_active, activated_at, last_known_latitude, last_known_longitude, last_location_recorded_at, notes, documents, created_at)
      VALUES
-      (:id, :loadNumber, :containerNumber, :dispatchType, :loadType, :customer, :driver, :dispatcher, :equipmentType, :chassisNumber, :origin, :destination, :pickupWindow, :deliveryWindow, :currencyType, :rate, :priority, :status, :routeTrack, :trackingActive, :activatedAt, :lastKnownLatitude, :lastKnownLongitude, :lastLocationRecordedAt, :notes, :documents)`,
+      (:id, :loadNumber, :containerNumber, :dispatchType, :loadType, :customer, :driver, :dispatcher, :equipmentType, :chassisNumber, :origin, :destination, :pickupWindow, :deliveryWindow, :currencyType, :rate, :priority, :status, :routeTrack, :trackingActive, :activatedAt, :lastKnownLatitude, :lastKnownLongitude, :lastLocationRecordedAt, :notes, :documents, :createdAt)`,
     {
       ...record,
       activatedAt: record.activatedAt
         ? record.activatedAt.slice(0, 19).replace("T", " ")
         : null,
+      createdAt: toSqlDateTime(record.createdAt),
       documents: JSON.stringify(record.documents),
       trackingActive: record.trackingActive ? 1 : 0,
     },

@@ -295,6 +295,10 @@ function asString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
+function toSqlDateTime(value: string) {
+  return value.slice(0, 19).replace("T", " ");
+}
+
 function createId(prefix: string) {
   return `${prefix}-${Date.now().toString().slice(-6)}${Math.floor(
     Math.random() * 9,
@@ -321,14 +325,10 @@ async function ensureColumnExists(
   }
 }
 
-async function ensureCoreTables() {
-  await connection();
+async function initializeCoreTables() {
+  const pool = getMySqlPool();
 
-  if (!globalThis.__freightflow_core_tables_ready__) {
-    globalThis.__freightflow_core_tables_ready__ = (async () => {
-      const pool = getMySqlPool();
-
-      await pool.query(`
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS customers (
           id VARCHAR(32) PRIMARY KEY,
           name VARCHAR(191) NOT NULL,
@@ -341,13 +341,13 @@ async function ensureCoreTables() {
           industry VARCHAR(191) NOT NULL,
           shipments INT NOT NULL DEFAULT 0,
           notes TEXT NOT NULL,
-          documents JSON NOT NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          documents LONGTEXT NOT NULL,
+          created_at DATETIME NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
 
-      await pool.query(`
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS ports (
           id VARCHAR(32) PRIMARY KEY,
           name VARCHAR(191) NOT NULL,
@@ -362,13 +362,13 @@ async function ensureCoreTables() {
           status ENUM('Active', 'Congested', 'Maintenance') NOT NULL DEFAULT 'Active',
           capacity VARCHAR(191) NOT NULL,
           notes TEXT NOT NULL,
-          documents JSON NOT NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          documents LONGTEXT NOT NULL,
+          created_at DATETIME NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
 
-      await pool.query(`
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS facilities (
           id VARCHAR(32) PRIMARY KEY,
           facility_type ENUM('Warehouse', 'Yard') NOT NULL,
@@ -383,19 +383,19 @@ async function ensureCoreTables() {
           status ENUM('Active', 'High Utilization', 'Maintenance') NOT NULL DEFAULT 'Active',
           operating_window VARCHAR(191) NOT NULL,
           notes TEXT NOT NULL,
-          documents JSON NOT NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          documents LONGTEXT NOT NULL,
+          created_at DATETIME NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
 
-      await ensureColumnExists(
-        "facilities",
-        "address",
-        "address VARCHAR(255) NOT NULL DEFAULT '' AFTER city",
-      );
+  await ensureColumnExists(
+    "facilities",
+    "address",
+    "address VARCHAR(255) NOT NULL DEFAULT '' AFTER city",
+  );
 
-      await pool.query(`
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS drivers (
           id VARCHAR(32) PRIMARY KEY,
           name VARCHAR(191) NOT NULL,
@@ -409,13 +409,13 @@ async function ensureCoreTables() {
           status ENUM('Active', 'On Route', 'Pending') NOT NULL DEFAULT 'Active',
           trips INT NOT NULL DEFAULT 0,
           notes TEXT NOT NULL,
-          documents JSON NOT NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          documents LONGTEXT NOT NULL,
+          created_at DATETIME NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
 
-      await pool.query(`
+  await pool.query(`
         CREATE TABLE IF NOT EXISTS chassis (
           id VARCHAR(32) PRIMARY KEY,
           chassis_number VARCHAR(128) NOT NULL,
@@ -428,13 +428,31 @@ async function ensureCoreTables() {
           chassis_condition TEXT NOT NULL,
           last_inspection VARCHAR(64) NOT NULL,
           notes TEXT NOT NULL,
-          documents JSON NOT NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          documents LONGTEXT NOT NULL,
+          created_at DATETIME NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
-    })();
+}
+
+async function ensureCoreTables() {
+  await connection();
+
+  if (globalThis.__freightflow_core_tables_ready__) {
+    try {
+      await globalThis.__freightflow_core_tables_ready__;
+      return;
+    } catch {
+      globalThis.__freightflow_core_tables_ready__ = undefined;
+    }
   }
+
+  globalThis.__freightflow_core_tables_ready__ = initializeCoreTables().catch(
+    (error) => {
+      globalThis.__freightflow_core_tables_ready__ = undefined;
+      throw error;
+    },
+  );
 
   await globalThis.__freightflow_core_tables_ready__;
 }
@@ -568,11 +586,12 @@ export async function createCustomer(input: CustomerCreateInput) {
 
   await pool.execute(
     `INSERT INTO customers
-      (id, name, company, email, phone, city, status, billing_terms, industry, shipments, notes, documents)
+      (id, name, company, email, phone, city, status, billing_terms, industry, shipments, notes, documents, created_at)
      VALUES
-      (:id, :name, :company, :email, :phone, :city, :status, :billingTerms, :industry, :shipments, :notes, :documents)`,
+      (:id, :name, :company, :email, :phone, :city, :status, :billingTerms, :industry, :shipments, :notes, :documents, :createdAt)`,
     {
       ...record,
+      createdAt: toSqlDateTime(record.createdAt),
       documents: JSON.stringify(record.documents),
     },
   );
@@ -678,11 +697,12 @@ export async function createPort(input: PortCreateInput) {
 
   await pool.execute(
     `INSERT INTO ports
-      (id, name, code, country, city, terminal_type, authority, contact_email, contact_phone, operating_window, status, capacity, notes, documents)
+      (id, name, code, country, city, terminal_type, authority, contact_email, contact_phone, operating_window, status, capacity, notes, documents, created_at)
      VALUES
-      (:id, :name, :code, :country, :city, :terminalType, :authority, :contactEmail, :contactPhone, :operatingWindow, :status, :capacity, :notes, :documents)`,
+      (:id, :name, :code, :country, :city, :terminalType, :authority, :contactEmail, :contactPhone, :operatingWindow, :status, :capacity, :notes, :documents, :createdAt)`,
     {
       ...record,
+      createdAt: toSqlDateTime(record.createdAt),
       documents: JSON.stringify(record.documents),
     },
   );
@@ -796,11 +816,12 @@ async function createFacility(type: FacilityType, input: FacilityCreateInput) {
 
   await pool.execute(
     `INSERT INTO facilities
-      (id, facility_type, name, city, address, manager, phone, email, capacity, docks, status, operating_window, notes, documents)
+      (id, facility_type, name, city, address, manager, phone, email, capacity, docks, status, operating_window, notes, documents, created_at)
      VALUES
-      (:id, :type, :name, :city, :address, :manager, :phone, :email, :capacity, :docks, :status, :operatingWindow, :notes, :documents)`,
+      (:id, :type, :name, :city, :address, :manager, :phone, :email, :capacity, :docks, :status, :operatingWindow, :notes, :documents, :createdAt)`,
     {
       ...record,
+      createdAt: toSqlDateTime(record.createdAt),
       documents: JSON.stringify(record.documents),
     },
   );
@@ -956,11 +977,12 @@ export async function createDriver(input: DriverCreateInput) {
 
   await pool.execute(
     `INSERT INTO drivers
-      (id, name, email, phone, base_location, license_number, vehicle_type, experience, emergency_contact, status, trips, notes, documents)
+      (id, name, email, phone, base_location, license_number, vehicle_type, experience, emergency_contact, status, trips, notes, documents, created_at)
      VALUES
-      (:id, :name, :email, :phone, :baseLocation, :licenseNumber, :vehicleType, :experience, :emergencyContact, :status, :trips, :notes, :documents)`,
+      (:id, :name, :email, :phone, :baseLocation, :licenseNumber, :vehicleType, :experience, :emergencyContact, :status, :trips, :notes, :documents, :createdAt)`,
     {
       ...record,
+      createdAt: toSqlDateTime(record.createdAt),
       documents: JSON.stringify(record.documents),
     },
   );
@@ -1067,11 +1089,12 @@ export async function createChassis(input: ChassisCreateInput) {
 
   await pool.execute(
     `INSERT INTO chassis
-      (id, chassis_number, type, size_compatibility, owner, current_location, assigned_container, status, chassis_condition, last_inspection, notes, documents)
+      (id, chassis_number, type, size_compatibility, owner, current_location, assigned_container, status, chassis_condition, last_inspection, notes, documents, created_at)
      VALUES
-      (:id, :chassisNumber, :type, :sizeCompatibility, :owner, :currentLocation, :assignedContainer, :status, :condition, :lastInspection, :notes, :documents)`,
+      (:id, :chassisNumber, :type, :sizeCompatibility, :owner, :currentLocation, :assignedContainer, :status, :condition, :lastInspection, :notes, :documents, :createdAt)`,
     {
       ...record,
+      createdAt: toSqlDateTime(record.createdAt),
       documents: JSON.stringify(record.documents),
     },
   );
