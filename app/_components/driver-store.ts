@@ -138,6 +138,10 @@ export function getDrivers(): DriverRecord[] {
   return cachedDrivers;
 }
 
+export function getDriversServerSnapshot(): DriverRecord[] {
+  return seedDrivers;
+}
+
 export function addDriver(input: DriverInput) {
   if (!canUseStorage()) {
     return;

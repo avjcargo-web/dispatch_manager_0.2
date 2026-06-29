@@ -6,6 +6,7 @@ type PortalTheme = "dark" | "light";
 
 const STORAGE_KEY = "freightflow.portal-theme";
 const THEME_EVENT = "freightflow:portal-theme-updated";
+const DEFAULT_THEME: PortalTheme = "dark";
 
 function subscribeTheme(callback: () => void) {
   if (typeof window === "undefined") {
@@ -23,10 +24,14 @@ function subscribeTheme(callback: () => void) {
 
 function getThemeSnapshot(): PortalTheme {
   if (typeof window === "undefined") {
-    return "dark";
+    return DEFAULT_THEME;
   }
 
-  return window.localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
+  return window.localStorage.getItem(STORAGE_KEY) === "light" ? "light" : DEFAULT_THEME;
+}
+
+function getThemeServerSnapshot(): PortalTheme {
+  return DEFAULT_THEME;
 }
 
 function applyTheme(theme: PortalTheme) {
@@ -34,7 +39,11 @@ function applyTheme(theme: PortalTheme) {
 }
 
 export function ThemeToggle() {
-  const theme = useSyncExternalStore(subscribeTheme, getThemeSnapshot, () => "dark");
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    getThemeSnapshot,
+    getThemeServerSnapshot,
+  );
 
   useEffect(() => {
     applyTheme(theme);

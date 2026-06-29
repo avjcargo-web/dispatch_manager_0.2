@@ -313,6 +313,10 @@ export function getContainers(): ContainerRecord[] {
   return cachedContainers;
 }
 
+export function getContainersServerSnapshot(): ContainerRecord[] {
+  return seedContainers;
+}
+
 function saveContainers(nextContainers: ContainerRecord[]) {
   const nextContainersRaw = JSON.stringify(nextContainers);
 

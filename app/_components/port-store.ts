@@ -144,6 +144,10 @@ export function getPorts(): PortRecord[] {
   return cachedPorts;
 }
 
+export function getPortsServerSnapshot(): PortRecord[] {
+  return seedPorts;
+}
+
 export function addPort(input: PortInput) {
   if (!canUseStorage()) {
     return;

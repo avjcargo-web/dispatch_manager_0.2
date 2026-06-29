@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
-import { getChassis, subscribeChassis } from "./chassis-store";
+import {
+  getChassis,
+  getChassisServerSnapshot,
+  subscribeChassis,
+} from "./chassis-store";
 
 function formatDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -16,7 +20,7 @@ export function ChassisList({ created = false }: { created?: boolean }) {
   const chassis = useSyncExternalStore(
     subscribeChassis,
     getChassis,
-    getChassis,
+    getChassisServerSnapshot,
   );
 
   return (

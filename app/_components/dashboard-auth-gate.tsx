@@ -14,19 +14,19 @@ export function DashboardAuthGate({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const auth = useSyncExternalStore(
+  const isAuthenticated = useSyncExternalStore(
     subscribeAuth,
     getAuthSnapshot,
     getAuthServerSnapshot,
   );
 
   useEffect(() => {
-    if (!auth.isAuthenticated) {
+    if (!isAuthenticated) {
       router.replace("/");
     }
-  }, [auth.isAuthenticated, router]);
+  }, [isAuthenticated, router]);
 
-  if (!auth.isAuthenticated) {
+  if (!isAuthenticated) {
     return (
       <div className="flex min-h-[240px] items-center justify-center px-6 py-10">
         <div className="ops-detail-card rounded-[24px] px-6 py-5 text-center">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import {
   getCustomers,
+  getCustomersServerSnapshot,
   subscribeCustomers,
 } from "./customer-store";
 
@@ -19,7 +20,7 @@ export function CustomersList({ created = false }: { created?: boolean }) {
   const customers = useSyncExternalStore(
     subscribeCustomers,
     getCustomers,
-    getCustomers,
+    getCustomersServerSnapshot,
   );
 
   return (

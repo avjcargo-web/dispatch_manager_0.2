@@ -16,7 +16,7 @@
   --signal-soft: #fff0c9;
   --success: #0f8a61;
   --success-soft: #dcf8ea;
-  --portal-font-sans: var(--font-roboto), "Segoe UI", "Trebuchet MS", sans-serif;
+  --portal-font-sans: "Segoe UI", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif;
   --portal-font-mono: "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   --ops-panel-primary-bg: linear-gradient(180deg, #091423 0%, #0d2138 55%, #102944 100%);
   --ops-panel-secondary-bg: linear-gradient(180deg, #081220 0%, #0c1d33 100%);

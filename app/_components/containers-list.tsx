@@ -6,6 +6,7 @@ import { useSyncExternalStore, useTransition } from "react";
 import {
   deleteContainer,
   getContainers,
+  getContainersServerSnapshot,
   subscribeContainers,
   updateContainerStatus,
 } from "./container-store";
@@ -73,7 +74,7 @@ export function ContainersList({
   const containers = useSyncExternalStore(
     subscribeContainers,
     getContainers,
-    getContainers,
+    getContainersServerSnapshot,
   );
 
   function handleDelete(id: string, containerNumber: string) {

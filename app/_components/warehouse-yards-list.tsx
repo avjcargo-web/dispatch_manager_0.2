@@ -5,6 +5,7 @@ import { useSyncExternalStore } from "react";
 import type { WarehouseYardRecord } from "./warehouse-yard-store";
 import {
   getWarehouseYards,
+  getWarehouseYardsServerSnapshot,
   subscribeWarehouseYards,
 } from "./warehouse-yard-store";
 
@@ -56,7 +57,7 @@ export function WarehouseYardsList({
   const warehouseYards = useSyncExternalStore(
     subscribeWarehouseYards,
     getWarehouseYards,
-    getWarehouseYards,
+    getWarehouseYardsServerSnapshot,
   );
   const filteredItems = warehouseYards.filter(
     (item) => item.type === facilityType,

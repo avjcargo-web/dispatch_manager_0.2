@@ -133,6 +133,10 @@ export function getCustomers(): CustomerRecord[] {
   return cachedCustomers;
 }
 
+export function getCustomersServerSnapshot(): CustomerRecord[] {
+  return seedCustomers;
+}
+
 export function addCustomer(input: CustomerInput) {
   if (!canUseStorage()) {
     return;

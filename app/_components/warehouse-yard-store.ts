@@ -143,6 +143,10 @@ export function getWarehouseYards(): WarehouseYardRecord[] {
   return cachedWarehouseYards;
 }
 
+export function getWarehouseYardsServerSnapshot(): WarehouseYardRecord[] {
+  return seedWarehouseYards;
+}
+
 export function addWarehouseYard(input: WarehouseYardInput) {
   if (!canUseStorage()) {
     return;

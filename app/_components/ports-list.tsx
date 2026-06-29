@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
-import { getPorts, subscribePorts } from "./port-store";
+import {
+  getPorts,
+  getPortsServerSnapshot,
+  subscribePorts,
+} from "./port-store";
 
 function formatDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -13,7 +17,11 @@ function formatDate(isoDate: string) {
 }
 
 export function PortsList({ created = false }: { created?: boolean }) {
-  const ports = useSyncExternalStore(subscribePorts, getPorts, getPorts);
+  const ports = useSyncExternalStore(
+    subscribePorts,
+    getPorts,
+    getPortsServerSnapshot,
+  );
 
   return (
     <main className="space-y-6 p-5 md:p-7">

@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
 import "./globals.css";
-
-const roboto = Roboto({
-  subsets: ["latin"],
-  variable: "--font-roboto",
-  weight: ["400", "500", "700"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -26,7 +19,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-portal-theme="dark"
-      className={`${roboto.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="min-h-full font-sans text-foreground">
         {children}

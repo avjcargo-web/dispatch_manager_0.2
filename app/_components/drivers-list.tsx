@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
-import { getDrivers, subscribeDrivers } from "./driver-store";
+import {
+  getDrivers,
+  getDriversServerSnapshot,
+  subscribeDrivers,
+} from "./driver-store";
 
 function formatDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -16,7 +20,7 @@ export function DriversList({ created = false }: { created?: boolean }) {
   const drivers = useSyncExternalStore(
     subscribeDrivers,
     getDrivers,
-    getDrivers,
+    getDriversServerSnapshot,
   );
 
   return (

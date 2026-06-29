@@ -1,8 +1,6 @@
 "use client";
 
-export type AuthState = {
-  isAuthenticated: boolean;
-};
+export type AuthState = boolean;
 
 const STORAGE_KEY = "freightflow.auth";
 const AUTH_EVENT = "freightflow:auth-updated";
@@ -13,12 +11,10 @@ function canUseStorage() {
 
 function readAuthState(): AuthState {
   if (!canUseStorage()) {
-    return { isAuthenticated: false };
+    return false;
   }
 
-  return {
-    isAuthenticated: window.localStorage.getItem(STORAGE_KEY) === "true",
-  };
+  return window.localStorage.getItem(STORAGE_KEY) === "true";
 }
 
 export function getAuthSnapshot() {
@@ -26,7 +22,7 @@ export function getAuthSnapshot() {
 }
 
 export function getAuthServerSnapshot() {
-  return { isAuthenticated: false };
+  return false;
 }
 
 export function subscribeAuth(callback: () => void) {

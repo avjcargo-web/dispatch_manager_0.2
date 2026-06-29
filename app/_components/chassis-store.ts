@@ -134,6 +134,10 @@ export function getChassis(): ChassisRecord[] {
   return cachedChassis;
 }
 
+export function getChassisServerSnapshot(): ChassisRecord[] {
+  return seedChassis;
+}
+
 export function addChassis(input: ChassisInput) {
   if (!canUseStorage()) {
     return;

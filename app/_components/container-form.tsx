@@ -9,7 +9,11 @@ import {
   useSyncExternalStore,
   useTransition,
 } from "react";
-import { getCustomers, subscribeCustomers } from "./customer-store";
+import {
+  getCustomers,
+  getCustomersServerSnapshot,
+  subscribeCustomers,
+} from "./customer-store";
 import { FileUploadCard } from "./file-upload-card";
 import {
   addContainer,
@@ -19,6 +23,7 @@ import {
 } from "./container-store";
 import {
   getWarehouseYards,
+  getWarehouseYardsServerSnapshot,
   subscribeWarehouseYards,
 } from "./warehouse-yard-store";
 
@@ -203,12 +208,12 @@ function ContainerFormContent({
   const customers = useSyncExternalStore(
     subscribeCustomers,
     getCustomers,
-    getCustomers,
+    getCustomersServerSnapshot,
   );
   const warehouseYards = useSyncExternalStore(
     subscribeWarehouseYards,
     getWarehouseYards,
-    getWarehouseYards,
+    getWarehouseYardsServerSnapshot,
   );
   const warehouseOptions = warehouseYards.filter(
     (item) => item.type === "Warehouse",
