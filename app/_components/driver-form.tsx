@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createFilesFromNames } from "./file-upload-utils";
 import { FileUploadCard } from "./file-upload-card";
+import type { DriverRecord } from "./driver-store";
 
 const initialForm = {
   name: "",
@@ -41,13 +43,52 @@ const driverChecklist = [
   "Experience and route notes captured",
 ];
 
-export function DriverForm() {
+function createInitialFormValue(
+  initialDriver?: Pick<
+    DriverRecord,
+    | "baseLocation"
+    | "email"
+    | "emergencyContact"
+    | "experience"
+    | "licenseNumber"
+    | "name"
+    | "notes"
+    | "phone"
+    | "vehicleType"
+  >,
+) {
+  if (!initialDriver) {
+    return initialForm;
+  }
+
+  return {
+    baseLocation: initialDriver.baseLocation,
+    email: initialDriver.email,
+    emergencyContact: initialDriver.emergencyContact,
+    experience: initialDriver.experience,
+    licenseNumber: initialDriver.licenseNumber,
+    name: initialDriver.name,
+    notes: initialDriver.notes,
+    phone: initialDriver.phone,
+    vehicleType: initialDriver.vehicleType,
+  };
+}
+
+type DriverFormProps = {
+  driverId?: string;
+  initialDriver?: DriverRecord;
+};
+
+export function DriverForm({ driverId, initialDriver }: DriverFormProps) {
   const router = useRouter();
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() => createInitialFormValue(initialDriver));
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [licenseDocs, setLicenseDocs] = useState<File[]>([]);
+  const [licenseDocs, setLicenseDocs] = useState<File[]>(() =>
+    createFilesFromNames(initialDriver?.documents ?? []),
+  );
   const [complianceDocs, setComplianceDocs] = useState<File[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const isEditing = Boolean(driverId);
 
   function handleChange(
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -65,16 +106,19 @@ export function DriverForm() {
     setSubmitError(null);
 
     try {
-      const response = await fetch("/api/drivers", {
+      const response = await fetch(
+        driverId ? `/api/drivers/${encodeURIComponent(driverId)}` : "/api/drivers",
+        {
         body: JSON.stringify({
-        ...form,
-        documents: [...licenseDocs, ...complianceDocs].map((file) => file.name),
+          ...form,
+          documents: [...licenseDocs, ...complianceDocs].map((file) => file.name),
         }),
         headers: {
           "Content-Type": "application/json",
         },
-        method: "POST",
-      });
+          method: driverId ? "PATCH" : "POST",
+        },
+      );
 
       if (!response.ok) {
         const error = (await response.json().catch(() => null)) as
@@ -83,7 +127,11 @@ export function DriverForm() {
         throw new Error(error?.message || "Failed to save driver.");
       }
 
-      router.push("/dashboard/drivers?created=1");
+      router.push(
+        driverId
+          ? "/dashboard/drivers?updated=1"
+          : "/dashboard/drivers?created=1",
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "Failed to save driver.",
@@ -102,11 +150,12 @@ export function DriverForm() {
               Driver section
             </p>
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-              Add driver
+              {isEditing ? "Edit driver" : "Add driver"}
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-              Create a new driver profile with contact, licensing, and
-              assignment details so dispatch can onboard the driver quickly.
+              {isEditing
+                ? "Update the driver profile, compliance details, and dispatch notes without losing the existing activity history."
+                : "Create a new driver profile with contact, licensing, and assignment details so dispatch can onboard the driver quickly."}
             </p>
           </div>
 
@@ -331,14 +380,22 @@ export function DriverForm() {
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
                   The driver and selected document names will be saved in MySQL
-                  and shown immediately in the driver list.
+                  {isEditing
+                    ? " and reflected immediately in the driver list."
+                    : " and shown immediately in the driver list."}
                 </p>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isSubmitting ? "Saving driver..." : "Save driver"}
+                  {isSubmitting
+                    ? isEditing
+                      ? "Updating driver..."
+                      : "Saving driver..."
+                    : isEditing
+                      ? "Update driver"
+                      : "Save driver"}
                 </button>
               </div>
             </div>

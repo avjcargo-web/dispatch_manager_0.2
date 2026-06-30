@@ -9,10 +9,17 @@ export const metadata: Metadata = {
 export default async function DriversPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; deleted?: string; updated?: string }>;
 }) {
-  const { created } = await searchParams;
+  const { created, deleted, updated } = await searchParams;
   const drivers = await listDrivers();
 
-  return <DriversList created={created === "1"} drivers={drivers} />;
+  return (
+    <DriversList
+      created={created === "1"}
+      deleted={deleted === "1"}
+      drivers={drivers}
+      updated={updated === "1"}
+    />
+  );
 }

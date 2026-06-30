@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createFilesFromNames } from "./file-upload-utils";
 import { FileUploadCard } from "./file-upload-card";
+import type { CustomerRecord } from "./customer-store";
 
 const initialForm = {
   name: "",
@@ -40,13 +42,53 @@ const customerChecklist = [
   "Operational notes for dispatch teams",
 ];
 
-export function CustomerForm() {
+function createInitialFormValue(
+  initialCustomer?: Pick<
+    CustomerRecord,
+    | "billingTerms"
+    | "city"
+    | "company"
+    | "email"
+    | "industry"
+    | "name"
+    | "notes"
+    | "phone"
+  >,
+) {
+  if (!initialCustomer) {
+    return initialForm;
+  }
+
+  return {
+    billingTerms: initialCustomer.billingTerms,
+    city: initialCustomer.city,
+    company: initialCustomer.company,
+    email: initialCustomer.email,
+    industry: initialCustomer.industry,
+    name: initialCustomer.name,
+    notes: initialCustomer.notes,
+    phone: initialCustomer.phone,
+  };
+}
+
+type CustomerFormProps = {
+  customerId?: string;
+  initialCustomer?: CustomerRecord;
+};
+
+export function CustomerForm({
+  customerId,
+  initialCustomer,
+}: CustomerFormProps) {
   const router = useRouter();
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() => createInitialFormValue(initialCustomer));
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [profileDocs, setProfileDocs] = useState<File[]>([]);
+  const [profileDocs, setProfileDocs] = useState<File[]>(() =>
+    createFilesFromNames(initialCustomer?.documents ?? []),
+  );
   const [commercialDocs, setCommercialDocs] = useState<File[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const isEditing = Boolean(customerId);
 
   function handleChange(
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
@@ -64,16 +106,19 @@ export function CustomerForm() {
     setSubmitError(null);
 
     try {
-      const response = await fetch("/api/customers", {
+      const response = await fetch(
+        customerId ? `/api/customers/${encodeURIComponent(customerId)}` : "/api/customers",
+        {
         body: JSON.stringify({
-        ...form,
-        documents: [...profileDocs, ...commercialDocs].map((file) => file.name),
+          ...form,
+          documents: [...profileDocs, ...commercialDocs].map((file) => file.name),
         }),
         headers: {
           "Content-Type": "application/json",
         },
-        method: "POST",
-      });
+          method: customerId ? "PATCH" : "POST",
+        },
+      );
 
       if (!response.ok) {
         const error = (await response.json().catch(() => null)) as
@@ -82,10 +127,14 @@ export function CustomerForm() {
         throw new Error(error?.message || "Failed to save customer.");
       }
 
-      router.push("/dashboard/customers?created=1");
+      router.push(
+        customerId
+          ? "/dashboard/customers?updated=1"
+          : "/dashboard/customers?created=1",
+      );
     } catch (error) {
       setSubmitError(
-        error instanceof Error ? error.message : "Failed to save customer.",
+          error instanceof Error ? error.message : "Failed to save customer.",
       );
     } finally {
       setIsSubmitting(false);
@@ -101,11 +150,12 @@ export function CustomerForm() {
               Customer section
             </p>
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-              Add customer
+              {isEditing ? "Edit customer" : "Add customer"}
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-              Create a new customer profile with commercial, contact, and lane
-              planning details so the team can start working with the account.
+              {isEditing
+                ? "Update the customer profile, commercial settings, and operational notes while keeping the account history intact."
+                : "Create a new customer profile with commercial, contact, and lane planning details so the team can start working with the account."}
             </p>
           </div>
 
@@ -312,14 +362,22 @@ export function CustomerForm() {
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(15,108,189,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
                   The customer and selected document names will be saved in
-                  MySQL and shown immediately in the customer list.
+                  {isEditing
+                    ? " MySQL and reflected immediately in the customer list."
+                    : " MySQL and shown immediately in the customer list."}
                 </p>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isSubmitting ? "Saving customer..." : "Save customer"}
+                  {isSubmitting
+                    ? isEditing
+                      ? "Updating customer..."
+                      : "Saving customer..."
+                    : isEditing
+                      ? "Update customer"
+                      : "Save customer"}
                 </button>
               </div>
             </div>

@@ -9,6 +9,7 @@ type FacilityType = "Warehouse" | "Yard";
 type FacilityStatus = "Active" | "High Utilization" | "Maintenance";
 type DriverStatus = "Active" | "On Route" | "Pending";
 type ChassisStatus = "Available" | "In Use" | "Maintenance";
+type ShippingLineStatus = "Active" | "Preferred" | "Suspended";
 
 export type CustomerRecord = {
   billingTerms: string;
@@ -179,6 +180,38 @@ export type ChassisCreateInput = {
 
 export type ChassisUpdateInput = Partial<ChassisCreateInput>;
 
+export type ShippingLineRecord = {
+  city: string;
+  contactEmail: string;
+  contactPhone: string;
+  country: string;
+  createdAt: string;
+  documents: string[];
+  id: string;
+  name: string;
+  notes: string;
+  scac: string;
+  serviceMode: string;
+  status: ShippingLineStatus;
+  website: string;
+};
+
+export type ShippingLineCreateInput = {
+  city: string;
+  contactEmail: string;
+  contactPhone: string;
+  country: string;
+  documents?: string[];
+  name: string;
+  notes: string;
+  scac: string;
+  serviceMode: string;
+  status?: ShippingLineStatus;
+  website: string;
+};
+
+export type ShippingLineUpdateInput = Partial<ShippingLineCreateInput>;
+
 type CustomerRow = RowDataPacket & {
   billing_terms: string;
   city: string;
@@ -262,6 +295,22 @@ type ChassisRow = RowDataPacket & {
   size_compatibility: string;
   status: ChassisStatus;
   type: string;
+};
+
+type ShippingLineRow = RowDataPacket & {
+  city: string;
+  contact_email: string;
+  contact_phone: string;
+  country: string;
+  created_at: Date | string;
+  documents: string | string[] | null;
+  id: string;
+  name: string;
+  notes: string;
+  scac: string;
+  service_mode: string;
+  status: ShippingLineStatus;
+  website: string;
 };
 
 declare global {
@@ -433,6 +482,25 @@ async function initializeCoreTables() {
           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
+
+  await pool.query(`
+        CREATE TABLE IF NOT EXISTS shipping_lines (
+          id VARCHAR(32) PRIMARY KEY,
+          name VARCHAR(191) NOT NULL,
+          scac VARCHAR(64) NOT NULL,
+          country VARCHAR(191) NOT NULL,
+          city VARCHAR(191) NOT NULL,
+          service_mode VARCHAR(191) NOT NULL,
+          contact_email VARCHAR(191) NOT NULL,
+          contact_phone VARCHAR(64) NOT NULL,
+          website VARCHAR(191) NOT NULL,
+          status ENUM('Active', 'Preferred', 'Suspended') NOT NULL DEFAULT 'Active',
+          notes TEXT NOT NULL,
+          documents LONGTEXT NOT NULL,
+          created_at DATETIME NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
 }
 
 async function ensureCoreTables() {
@@ -553,6 +621,24 @@ function mapChassis(row: ChassisRow): ChassisRecord {
     sizeCompatibility: row.size_compatibility,
     status: row.status,
     type: row.type,
+  };
+}
+
+function mapShippingLine(row: ShippingLineRow): ShippingLineRecord {
+  return {
+    city: row.city,
+    contactEmail: row.contact_email,
+    contactPhone: row.contact_phone,
+    country: row.country,
+    createdAt: toIsoString(row.created_at),
+    documents: asDocuments(row.documents),
+    id: row.id,
+    name: row.name,
+    notes: row.notes,
+    scac: row.scac,
+    serviceMode: row.service_mode,
+    status: row.status,
+    website: row.website,
   };
 }
 
@@ -1164,6 +1250,119 @@ export async function deleteChassis(id: string) {
   const pool = getMySqlPool();
   const [result] = await pool.execute<ResultSetHeader>(
     "DELETE FROM chassis WHERE id = :id",
+    { id },
+  );
+  return result.affectedRows > 0;
+}
+
+export async function listShippingLines() {
+  await ensureCoreTables();
+  const pool = getMySqlPool();
+  const [rows] = await pool.query<ShippingLineRow[]>(
+    "SELECT * FROM shipping_lines ORDER BY created_at DESC",
+  );
+  return rows.map(mapShippingLine);
+}
+
+export async function createShippingLine(input: ShippingLineCreateInput) {
+  await ensureCoreTables();
+  const pool = getMySqlPool();
+  const record: ShippingLineRecord = {
+    city: asString(input.city),
+    contactEmail: asString(input.contactEmail),
+    contactPhone: asString(input.contactPhone),
+    country: asString(input.country),
+    createdAt: new Date().toISOString(),
+    documents: asDocuments(input.documents),
+    id: createId("SHIP"),
+    name: asString(input.name),
+    notes: asString(input.notes),
+    scac: asString(input.scac),
+    serviceMode: asString(input.serviceMode),
+    status: input.status ?? "Active",
+    website: asString(input.website),
+  };
+
+  await pool.execute(
+    `INSERT INTO shipping_lines
+      (id, name, scac, country, city, service_mode, contact_email, contact_phone, website, status, notes, documents, created_at)
+     VALUES
+      (:id, :name, :scac, :country, :city, :serviceMode, :contactEmail, :contactPhone, :website, :status, :notes, :documents, :createdAt)`,
+    {
+      ...record,
+      createdAt: toSqlDateTime(record.createdAt),
+      documents: JSON.stringify(record.documents),
+    },
+  );
+
+  return record;
+}
+
+export async function getShippingLineById(id: string) {
+  await ensureCoreTables();
+  const pool = getMySqlPool();
+  const [rows] = await pool.execute<ShippingLineRow[]>(
+    "SELECT * FROM shipping_lines WHERE id = :id LIMIT 1",
+    { id },
+  );
+  return rows[0] ? mapShippingLine(rows[0]) : null;
+}
+
+export async function updateShippingLine(
+  id: string,
+  input: ShippingLineUpdateInput,
+) {
+  const current = await getShippingLineById(id);
+
+  if (!current) {
+    return null;
+  }
+
+  const pool = getMySqlPool();
+  const next: ShippingLineRecord = {
+    ...current,
+    city: input.city ?? current.city,
+    contactEmail: input.contactEmail ?? current.contactEmail,
+    contactPhone: input.contactPhone ?? current.contactPhone,
+    country: input.country ?? current.country,
+    documents: input.documents ? asDocuments(input.documents) : current.documents,
+    name: input.name ?? current.name,
+    notes: input.notes ?? current.notes,
+    scac: input.scac ?? current.scac,
+    serviceMode: input.serviceMode ?? current.serviceMode,
+    status: input.status ?? current.status,
+    website: input.website ?? current.website,
+  };
+
+  await pool.execute(
+    `UPDATE shipping_lines SET
+      name = :name,
+      scac = :scac,
+      country = :country,
+      city = :city,
+      service_mode = :serviceMode,
+      contact_email = :contactEmail,
+      contact_phone = :contactPhone,
+      website = :website,
+      status = :status,
+      notes = :notes,
+      documents = :documents
+     WHERE id = :id`,
+    {
+      ...next,
+      documents: JSON.stringify(next.documents),
+      id,
+    },
+  );
+
+  return next;
+}
+
+export async function deleteShippingLine(id: string) {
+  await ensureCoreTables();
+  const pool = getMySqlPool();
+  const [result] = await pool.execute<ResultSetHeader>(
+    "DELETE FROM shipping_lines WHERE id = :id",
     { id },
   );
   return result.affectedRows > 0;

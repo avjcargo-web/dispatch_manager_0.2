@@ -12,6 +12,9 @@ export type DispatchType =
   | "Yard to Warehouse"
   | "Yard to Port";
 
+export type DispatchTypeValue = DispatchType | "";
+export type DeliveryType = "" | "Live" | "Drop" | "SOC";
+
 export type DispatchPriority = "Standard" | "Priority" | "Critical";
 
 export type DispatchRecord = {
@@ -21,22 +24,30 @@ export type DispatchRecord = {
   createdAt: string;
   currencyType: string;
   customer: string;
+  deliveryType: DeliveryType;
   deliveryWindow: string;
   destination: string;
-  dispatchType: DispatchType;
+  dispatchType: DispatchTypeValue;
   dispatcher: string;
   documents: string[];
   driver: string;
   equipmentType: string;
+  gateCode: string;
   id: string;
+  checkedInNumber: string;
   loadNumber: string;
   loadType: DispatchLoadType;
   notes: string;
   origin: string;
+  pin: string;
   pickupWindow: string;
   priority: DispatchPriority;
   rate: string;
   routeTrack: string;
+  scac: string;
+  sealNumber: string;
+  shippingLine: string;
+  size: string;
   lastKnownLatitude: number | null;
   lastKnownLongitude: number | null;
   lastLocationRecordedAt: string | null;
@@ -50,21 +61,29 @@ export type DispatchInput = {
   containerNumber: string;
   currencyType: string;
   customer: string;
+  deliveryType: DeliveryType;
   deliveryWindow: string;
   destination: string;
-  dispatchType: DispatchType;
+  dispatchType: DispatchTypeValue;
   dispatcher: string;
   documents: string[];
   driver: string;
   equipmentType: string;
+  gateCode: string;
+  checkedInNumber: string;
   loadNumber: string;
   loadType: DispatchLoadType;
   notes: string;
   origin: string;
+  pin: string;
   pickupWindow: string;
   priority: DispatchPriority;
   rate: string;
   routeTrack: string;
+  scac: string;
+  sealNumber: string;
+  shippingLine: string;
+  size: string;
   lastKnownLatitude?: number | null;
   lastKnownLongitude?: number | null;
   lastLocationRecordedAt?: string | null;
@@ -81,24 +100,32 @@ const seedDispatches: DispatchRecord[] = [
     chassisNumber: "140",
     containerNumber: "MSCU-482190-3",
     createdAt: "2026-06-27T07:20:00.000Z",
-    currencyType: "USD",
-    customer: "Metro Retail Supply",
+    currencyType: "",
+    customer: "",
+    deliveryType: "Live",
     deliveryWindow: "2026-06-29T18:00",
-    destination: "Central Cross-Dock, Mumbai",
+    destination: "Central Cross-Dock, Wadala Logistics Estate, Mumbai",
     dispatchType: "Port to Warehouse",
     dispatcher: "Ayesha Khan",
-    documents: ["Dispatch-Release.pdf", "Route-Sheet.pdf"],
+    documents: [],
     driver: "Arjun Singh",
     equipmentType: "Container Truck",
+    gateCode: "GATE-3A",
     id: "DSP-7001",
+    checkedInNumber: "CI-22091",
     loadNumber: "LOAD-MUM-1184",
     loadType: "Import",
-    notes: "Escort team to confirm final gate-out after berth handoff.",
+    notes: "",
     origin: "Nhava Sheva Pickup Zone 3",
+    pin: "4721",
     pickupWindow: "2026-06-29T09:30",
-    priority: "Critical",
-    rate: "1850",
+    priority: "Standard",
+    rate: "",
     routeTrack: "Port -> Warehouse",
+    scac: "MSCU",
+    sealNumber: "SEAL-881092",
+    shippingLine: "Mediterranean Shipping",
+    size: "40 ft",
     lastKnownLatitude: 19.0907,
     lastKnownLongitude: 72.9121,
     lastLocationRecordedAt: "2026-06-29T11:14:00.000Z",
@@ -110,24 +137,32 @@ const seedDispatches: DispatchRecord[] = [
     chassisNumber: "120",
     containerNumber: "TGHU-310044-8",
     createdAt: "2026-06-28T10:05:00.000Z",
-    currencyType: "USD",
-    customer: "NorthFresh Foods",
+    currencyType: "",
+    customer: "",
+    deliveryType: "Drop",
     deliveryWindow: "2026-06-30T05:30",
     destination: "North Staging Yard",
     dispatchType: "Port to Yard",
     dispatcher: "Neha Verma",
-    documents: ["Rate-Confirmation.pdf"],
+    documents: [],
     driver: "Ritesh Patil",
     equipmentType: "Reefer Truck",
+    gateCode: "GATE-2C",
     id: "DSP-7002",
+    checkedInNumber: "CI-11820",
     loadNumber: "LOAD-BLR-2240",
     loadType: "Export",
-    notes: "Pre-cooling confirmed. Driver to call before dock assignment.",
+    notes: "",
     origin: "South Cold Storage Hub Gate 2",
+    pin: "6815",
     pickupWindow: "2026-06-29T23:30",
-    priority: "Priority",
+    priority: "Standard",
     rate: "",
     routeTrack: "Port -> Yard",
+    scac: "TGHU",
+    sealNumber: "SEAL-550812",
+    shippingLine: "TransGlobe Haulage",
+    size: "20 ft",
     lastKnownLatitude: null,
     lastKnownLongitude: null,
     lastLocationRecordedAt: null,
@@ -139,24 +174,32 @@ const seedDispatches: DispatchRecord[] = [
     chassisNumber: "155",
     containerNumber: "OOLU-195672-1",
     createdAt: "2026-06-25T15:45:00.000Z",
-    currencyType: "USD",
-    customer: "Westline Components",
+    currencyType: "",
+    customer: "",
+    deliveryType: "SOC",
     deliveryWindow: "2026-06-28T14:30",
     destination: "North Staging Yard Bay 6",
     dispatchType: "Yard to Port",
     dispatcher: "Ayesha Khan",
-    documents: ["POD-Stamped.pdf", "Arrival-Checklist.pdf"],
+    documents: [],
     driver: "Sameer Kulkarni",
     equipmentType: "Flatbed with escort",
+    gateCode: "BAY-6E",
     id: "DSP-7003",
+    checkedInNumber: "CI-51002",
     loadNumber: "LOAD-DEL-9038",
     loadType: "Export",
-    notes: "Heavy machinery arrival completed with signed POD.",
+    notes: "",
     origin: "North Staging Yard",
+    pin: "9054",
     pickupWindow: "2026-06-28T06:15",
-    priority: "Priority",
-    rate: "2150",
+    priority: "Standard",
+    rate: "",
     routeTrack: "Yard -> Port",
+    scac: "OOLU",
+    sealNumber: "SEAL-774901",
+    shippingLine: "OOCL Leasing",
+    size: "40 ft",
     lastKnownLatitude: 19.0564,
     lastKnownLongitude: 72.8799,
     lastLocationRecordedAt: "2026-06-28T13:58:00.000Z",
@@ -168,24 +211,32 @@ const seedDispatches: DispatchRecord[] = [
     chassisNumber: "",
     containerNumber: "",
     createdAt: "2026-06-26T12:10:00.000Z",
-    currencyType: "USD",
-    customer: "Rapid Pharma Chain",
+    currencyType: "",
+    customer: "",
+    deliveryType: "",
     deliveryWindow: "2026-06-29T11:00",
     destination: "Ahmedabad City Hospital Cluster",
     dispatchType: "Yard to Warehouse",
     dispatcher: "Rahul Sethi",
-    documents: ["Customer-Hold-Notice.pdf"],
+    documents: [],
     driver: "Pooja Nair",
     equipmentType: "Box Truck",
+    gateCode: "",
     id: "DSP-7004",
+    checkedInNumber: "",
     loadNumber: "LOAD-AHD-4411",
     loadType: "Import",
-    notes: "Customer asked for a 24-hour hold while inventory is recounted.",
+    notes: "",
     origin: "West Medical Consolidation Hub",
+    pin: "",
     pickupWindow: "2026-06-29T06:30",
     priority: "Standard",
     rate: "",
     routeTrack: "Yard -> Warehouse",
+    scac: "",
+    sealNumber: "",
+    shippingLine: "",
+    size: "",
     lastKnownLatitude: null,
     lastKnownLongitude: null,
     lastLocationRecordedAt: null,
@@ -227,7 +278,11 @@ function normalizeLoadType(value: unknown): DispatchLoadType {
   return value === "Export" ? "Export" : "Import";
 }
 
-function normalizeDispatchType(value: unknown): DispatchType {
+function normalizeDispatchType(value: unknown): DispatchTypeValue {
+  if (value === "") {
+    return "";
+  }
+
   if (
     value === "Port to Yard" ||
     value === "Yard to Warehouse" ||
@@ -236,7 +291,15 @@ function normalizeDispatchType(value: unknown): DispatchType {
     return value;
   }
 
-  return "Port to Warehouse";
+  return value === "Port to Warehouse" ? value : "";
+}
+
+function normalizeDeliveryType(value: unknown): DeliveryType {
+  if (value === "Live" || value === "Drop" || value === "SOC") {
+    return value;
+  }
+
+  return "";
 }
 
 function normalizeDispatchRecord(record: unknown, index: number): DispatchRecord {
@@ -262,6 +325,7 @@ function normalizeDispatchRecord(record: unknown, index: number): DispatchRecord
     createdAt: asString(candidate.createdAt, new Date().toISOString()),
     currencyType: asString(candidate.currencyType, "USD"),
     customer: asString(candidate.customer ?? candidate.customerName),
+    deliveryType: normalizeDeliveryType(candidate.deliveryType),
     deliveryWindow: asString(candidate.deliveryWindow),
     destination: asString(
       candidate.destination ?? candidate.laneTo,
@@ -276,7 +340,9 @@ function normalizeDispatchRecord(record: unknown, index: number): DispatchRecord
       : [],
     driver: asString(candidate.driver ?? candidate.assignedDriver),
     equipmentType: asString(candidate.equipmentType ?? candidate.truckType),
+    gateCode: asString(candidate.gateCode),
     id: asString(candidate.id, `DSP-${7000 + index}`),
+    checkedInNumber: asString(candidate.checkedInNumber),
     loadNumber: asString(
       candidate.loadNumber ?? candidate.tripNumber,
       `LOAD-${index + 1}`,
@@ -298,10 +364,15 @@ function normalizeDispatchRecord(record: unknown, index: number): DispatchRecord
         : null,
     notes: asString(candidate.notes),
     origin: asString(candidate.origin ?? candidate.laneFrom, fallbackOrigin),
+    pin: asString(candidate.pin),
     pickupWindow: asString(candidate.pickupWindow),
     priority: normalizePriority(candidate.priority),
     rate: asString(candidate.rate),
     routeTrack: asString(candidate.routeTrack),
+    scac: asString(candidate.scac),
+    sealNumber: asString(candidate.sealNumber),
+    shippingLine: asString(candidate.shippingLine),
+    size: asString(candidate.size),
     status: normalizeStatus(candidate.status),
     trackingActive: Boolean(candidate.trackingActive),
   };

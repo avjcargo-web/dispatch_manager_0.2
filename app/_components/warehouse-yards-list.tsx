@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import type { WarehouseYardRecord } from "./warehouse-yard-store";
 
 type FacilityType = "Warehouse" | "Yard";
@@ -41,17 +45,75 @@ function formatDate(isoDate: string) {
 
 export function WarehouseYardsList({
   created = false,
+  deleted = false,
   facilityType,
+  updated = false,
   warehouseYards,
 }: {
   created?: boolean;
+  deleted?: boolean;
   facilityType: FacilityType;
+  updated?: boolean;
   warehouseYards: WarehouseYardRecord[];
 }) {
+  const router = useRouter();
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const filteredItems = warehouseYards.filter(
     (item) => item.type === facilityType,
   );
   const content = facilityContent[facilityType];
+
+  async function runAction(
+    id: string,
+    nextPath: string,
+    request: () => Promise<Response>,
+  ) {
+    setActiveActionId(id);
+    setActionError(null);
+
+    try {
+      const response = await request();
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(error?.message || `${facilityType} action failed.`);
+      }
+
+      router.push(nextPath);
+      router.refresh();
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : `${facilityType} action failed.`,
+      );
+    } finally {
+      setActiveActionId(null);
+    }
+  }
+
+  function handleDelete(id: string, name: string) {
+    const shouldDelete = window.confirm(
+      `Delete ${facilityType.toLowerCase()} ${name}? This will remove it from the active list.`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    const basePath =
+      facilityType === "Warehouse" ? "/dashboard/warehouses" : "/dashboard/yards";
+    const apiPath = facilityType === "Warehouse" ? "/api/warehouses" : "/api/yards";
+
+    void runAction(id, `${basePath}?deleted=1`, () =>
+      fetch(`${apiPath}/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      }),
+    );
+  }
 
   function statusCount(status: WarehouseYardRecord["status"]) {
     return filteredItems.filter((item) => item.status === status).length;
@@ -85,6 +147,21 @@ export function WarehouseYardsList({
           <div className="mt-6 rounded-2xl border border-success/15 bg-success-soft px-4 py-3 text-sm text-success">
             {facilityType} has been added successfully and is now available in
             the list.
+          </div>
+        ) : null}
+        {updated ? (
+          <div className="mt-6 rounded-2xl border border-sky-400/20 bg-sky-500/12 px-4 py-3 text-sm text-sky-200">
+            {facilityType} details have been updated successfully.
+          </div>
+        ) : null}
+        {deleted ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            {facilityType} has been deleted from the active list.
+          </div>
+        ) : null}
+        {actionError ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            {actionError}
           </div>
         ) : null}
 
@@ -133,6 +210,7 @@ export function WarehouseYardsList({
                 <th className="px-4 py-2">Docks</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Added</th>
+                <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -182,8 +260,30 @@ export function WarehouseYardsList({
                       {item.status}
                     </span>
                   </td>
-                  <td className="ops-subtle rounded-r-[24px] px-4 py-4 align-top">
+                  <td className="ops-subtle px-4 py-4 align-top">
                     {formatDate(item.createdAt)}
+                  </td>
+                  <td className="rounded-r-[24px] px-4 py-4 align-top">
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={`${
+                          facilityType === "Warehouse"
+                            ? "/dashboard/warehouses"
+                            : "/dashboard/yards"
+                        }/${encodeURIComponent(item.id)}`}
+                        className="ops-action-chip ops-action-edit inline-flex h-10 items-center justify-center rounded-2xl px-3 text-xs font-semibold uppercase tracking-[0.12em] transition hover:opacity-90"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={activeActionId !== null}
+                        onClick={() => handleDelete(item.id, item.name)}
+                        className="ops-action-chip ops-action-delete inline-flex h-10 items-center justify-center rounded-2xl px-3 text-xs font-semibold uppercase tracking-[0.12em] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
+                      >
+                        {activeActionId === item.id ? "Deleting" : "Delete"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

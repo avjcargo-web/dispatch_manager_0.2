@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import type { PortRecord } from "./port-store";
 
 function formatDate(isoDate: string) {
@@ -9,13 +13,66 @@ function formatDate(isoDate: string) {
   }).format(new Date(isoDate));
 }
 
+type PortsListProps = {
+  created?: boolean;
+  deleted?: boolean;
+  ports: PortRecord[];
+  updated?: boolean;
+};
+
 export function PortsList({
   created = false,
+  deleted = false,
   ports,
-}: {
-  created?: boolean;
-  ports: PortRecord[];
-}) {
+  updated = false,
+}: PortsListProps) {
+  const router = useRouter();
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function runAction(
+    id: string,
+    nextPath: string,
+    request: () => Promise<Response>,
+  ) {
+    setActiveActionId(id);
+    setActionError(null);
+
+    try {
+      const response = await request();
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(error?.message || "Port action failed.");
+      }
+
+      router.push(nextPath);
+      router.refresh();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Port action failed.");
+    } finally {
+      setActiveActionId(null);
+    }
+  }
+
+  function handleDelete(id: string, name: string) {
+    const shouldDelete = window.confirm(
+      `Delete port ${name}? This will remove it from the port list.`,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    void runAction(id, "/dashboard/ports?deleted=1", () =>
+      fetch(`/api/ports/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      }),
+    );
+  }
+
   return (
     <main className="space-y-6 p-5 md:p-7">
       <section className="ops-panel-primary rounded-[30px] p-6">
@@ -44,6 +101,21 @@ export function PortsList({
         {created ? (
           <div className="mt-6 rounded-2xl border border-success/15 bg-success-soft px-4 py-3 text-sm text-success">
             Port has been added successfully and is now available in the list.
+          </div>
+        ) : null}
+        {updated ? (
+          <div className="mt-6 rounded-2xl border border-sky-400/20 bg-sky-500/12 px-4 py-3 text-sm text-sky-200">
+            Port details have been updated successfully.
+          </div>
+        ) : null}
+        {deleted ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            Port has been deleted from the active list.
+          </div>
+        ) : null}
+        {actionError ? (
+          <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-500/12 px-4 py-3 text-sm text-rose-200">
+            {actionError}
           </div>
         ) : null}
 
@@ -88,6 +160,7 @@ export function PortsList({
                 <th className="px-4 py-2">Capacity</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Added</th>
+                <th className="px-4 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -141,8 +214,26 @@ export function PortsList({
                       {item.status}
                     </span>
                   </td>
-                  <td className="ops-subtle rounded-r-[24px] px-4 py-4 align-top">
+                  <td className="ops-subtle px-4 py-4 align-top">
                     {formatDate(item.createdAt)}
+                  </td>
+                  <td className="rounded-r-[24px] px-4 py-4 align-top">
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/dashboard/ports/${encodeURIComponent(item.id)}`}
+                        className="ops-action-chip ops-action-edit inline-flex h-10 items-center justify-center rounded-2xl px-3 text-xs font-semibold uppercase tracking-[0.12em] transition hover:opacity-90"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={activeActionId !== null}
+                        onClick={() => handleDelete(item.id, item.name)}
+                        className="ops-action-chip ops-action-delete inline-flex h-10 items-center justify-center rounded-2xl px-3 text-xs font-semibold uppercase tracking-[0.12em] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
+                      >
+                        {activeActionId === item.id ? "Deleting" : "Delete"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -96,9 +96,9 @@ export function DispatchTrackingView({
               {dispatch.containerNumber || dispatch.loadNumber}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-              Dispatcher live location view for the active driver device. This
-              screen refreshes every 10 seconds while the driver app keeps
-              sharing background GPS updates.
+              Live location view for the active dispatch handoff. This screen
+              refreshes every 10 seconds while the driver device shares
+              background GPS updates.
             </p>
           </div>
 
@@ -134,7 +134,7 @@ export function DispatchTrackingView({
               Driver
             </p>
             <p className="mt-3 text-2xl font-semibold tracking-tight text-ink">
-              {dispatch.driver}
+              {dispatch.driver || "Assign later"}
             </p>
             <p className="mt-2 text-sm text-muted">{dispatch.dispatcher}</p>
           </article>
@@ -186,24 +186,34 @@ export function DispatchTrackingView({
                 </p>
               </div>
               <div className="rounded-[22px] border border-line bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold text-ink">Route</p>
+                <p className="text-sm font-semibold text-ink">Pickup</p>
                 <p className="mt-3 text-lg font-semibold text-ink">
-                  {dispatch.origin} to {dispatch.destination}
+                  {dispatch.origin || "Pickup pending"}
                 </p>
                 <p className="mt-2 text-sm text-muted">
-                  {dispatch.routeTrack || dispatch.dispatchType}
+                  {dispatch.pickupWindow
+                    ? `Time: ${dispatch.pickupWindow}`
+                    : "Pickup time pending"}
                 </p>
               </div>
               <div className="rounded-[22px] border border-line bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold text-ink">Load number</p>
+                <p className="text-sm font-semibold text-ink">Delivery</p>
                 <p className="mt-3 text-lg font-semibold text-ink">
-                  {dispatch.loadNumber}
+                  {dispatch.destination || "Delivery pending"}
+                </p>
+                <p className="mt-2 text-sm text-muted">
+                  {dispatch.deliveryWindow
+                    ? `Time: ${dispatch.deliveryWindow}`
+                    : "Delivery time pending"}
                 </p>
               </div>
               <div className="rounded-[22px] border border-line bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold text-ink">Activated at</p>
+                <p className="text-sm font-semibold text-ink">Route summary</p>
                 <p className="mt-3 text-lg font-semibold text-ink">
-                  {formatLocationTime(dispatch.activatedAt)}
+                  {dispatch.dispatchType || "Assign later"}
+                </p>
+                <p className="mt-2 text-sm text-muted">
+                  {dispatch.routeTrack || "Route track pending"}
                 </p>
               </div>
             </div>
@@ -211,36 +221,45 @@ export function DispatchTrackingView({
 
           <article className="rounded-[28px] border border-slate-900/0 bg-slate-950 p-6 text-white shadow-[0_24px_70px_rgba(15,23,42,0.14)]">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-200/70">
-              Dispatcher notes
+              Driver handoff
             </p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-              Tracking summary
+              Shared dispatch details
             </h2>
             <div className="mt-6 space-y-4">
               <div className="rounded-[22px] border border-white/10 bg-white/7 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-300">
-                  Driver
-                </p>
-                <p className="mt-2 text-lg font-semibold">{dispatch.driver}</p>
-              </div>
-              <div className="rounded-[22px] border border-white/10 bg-white/7 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-300">
-                  Equipment
+                  Container
                 </p>
                 <p className="mt-2 text-lg font-semibold">
-                  {dispatch.equipmentType}
+                  {dispatch.containerNumber || "Pending"}
                 </p>
                 <p className="mt-2 text-sm text-slate-300">
-                  Chassis {dispatch.chassisNumber || "Pending"}
+                  {dispatch.size || "Size pending"} /{" "}
+                  {dispatch.shippingLine || "Shipping line pending"}
                 </p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-white/7 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-300">
-                  GPS coordinates
+                  Access
                 </p>
                 <p className="mt-2 text-lg font-semibold">
-                  {formatCoordinate(dispatch.lastKnownLatitude, "--")},{" "}
-                  {formatCoordinate(dispatch.lastKnownLongitude, "--")}
+                  Gate {dispatch.gateCode || "Pending"} / PIN {dispatch.pin || "Pending"}
+                </p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Check-in {dispatch.checkedInNumber || "Pending"}
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-white/10 bg-white/7 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-300">
+                  Seal and SCAC
+                </p>
+                <p className="mt-2 text-lg font-semibold">
+                  {dispatch.sealNumber || "Seal pending"}
+                </p>
+                <p className="mt-2 text-sm text-slate-300">
+                  SCAC {dispatch.scac || "Pending"} /{" "}
+                  {dispatch.deliveryType || "Delivery type pending"}
                 </p>
               </div>
             </div>

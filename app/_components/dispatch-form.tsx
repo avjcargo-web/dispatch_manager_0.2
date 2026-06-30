@@ -9,6 +9,7 @@ import {
   type DispatchInput,
   type DispatchLoadType,
   type DispatchType,
+  type DispatchTypeValue,
 } from "./dispatch-store";
 import type { DriverRecord } from "./driver-store";
 import type { WarehouseYardRecord } from "./warehouse-yard-store";
@@ -17,36 +18,36 @@ const DISPATCHER_NAME = "Ayesha Khan";
 
 const initialForm = {
   containerNumber: "",
-  dispatchType: "Port to Warehouse" as DispatchType,
+  dispatchType: "" as DispatchTypeValue,
   driver: "",
   loadType: "Import" as DispatchLoadType,
 };
 
 const dispatchSignals = [
   {
-    label: "Workflow style",
-    value: "Container-first dispatching",
+    label: "Handoff style",
+    value: "Driver-safe dispatching",
     detail:
-      "Pick the container once, then let dispatch inherit customer, lane, and document context automatically.",
+      "Only operational details needed for pickup and delivery are carried into dispatch for the driver handoff.",
   },
   {
     label: "Operator effort",
-    value: "4 key inputs",
+    value: "2 required inputs",
     detail:
-      "The form stays light so the team can activate a dispatch quickly without retyping data that already exists.",
+      "Container number and load type are enough to create the dispatch first, then driver and dispatch type can be assigned later.",
   },
   {
-    label: "Pricing next",
-    value: "Driver charges after activation",
+    label: "Privacy guard",
+    value: "Reduced field sharing",
     detail:
-      "Different driver payouts and extra charges can be layered on after the dispatch becomes active.",
+      "Commercial notes, customer context, and extra documents stay out of the driver-facing dispatch details.",
   },
 ];
 
 const dispatchChecklist = [
   "Container selected from the existing container board",
-  "Dispatch type and driver assigned for the live move",
-  "Container details reviewed before activation",
+  "Load type confirmed before activation",
+  "Pickup and delivery instructions reviewed for the driver handoff",
 ];
 
 const dispatchTypeOptions: DispatchType[] = [
@@ -87,45 +88,41 @@ function getPreferredYardName(
   return matchedYard?.name ?? yards[0]?.name ?? "";
 }
 
-function resolveRoute(
-  dispatchType: DispatchType,
+function getWarehouseDestination(container: ContainerRecord | null) {
+  if (!container) {
+    return "";
+  }
+
+  return [container.warehouse, container.warehouseAddress].filter(Boolean).join(", ");
+}
+
+function resolveDispatchDestination(
+  dispatchType: DispatchTypeValue,
   container: ContainerRecord | null,
   yards: Array<{ name: string }>,
 ) {
   const portLocation = container?.port || container?.pickupLocation || "";
-  const warehouseLocation = container?.warehouse ?? "";
+  const warehouseLocation = getWarehouseDestination(container);
   const yardLocation = getPreferredYardName(container, yards);
 
-  if (dispatchType === "Port to Yard") {
-    return {
-      destination: yardLocation,
-      origin: portLocation,
-    };
+  if (!dispatchType) {
+    return warehouseLocation;
   }
 
-  if (dispatchType === "Yard to Warehouse") {
-    return {
-      destination: warehouseLocation,
-      origin: yardLocation,
-    };
+  if (dispatchType === "Port to Yard") {
+    return yardLocation;
   }
 
   if (dispatchType === "Yard to Port") {
-    return {
-      destination: portLocation,
-      origin: yardLocation,
-    };
+    return portLocation;
   }
 
-  return {
-    destination: warehouseLocation,
-    origin: portLocation,
-  };
+  return warehouseLocation;
 }
 
 function createLoadNumber(
   container: ContainerRecord | null,
-  dispatchType: DispatchType,
+  dispatchType: DispatchTypeValue,
 ) {
   const typeCode =
     dispatchType === "Port to Warehouse"
@@ -134,20 +131,22 @@ function createLoadNumber(
         ? "PY"
         : dispatchType === "Yard to Warehouse"
           ? "YW"
-          : "YP";
+          : dispatchType === "Yard to Port"
+            ? "YP"
+            : "GEN";
   const containerCode =
     container?.containerNumber.replace(/[^A-Z0-9]/gi, "").slice(-6) ?? "NEW";
 
   return `LOAD-${typeCode}-${containerCode}`;
 }
 
-function createRouteTrack(dispatchType: DispatchType) {
-  return dispatchType.replaceAll(" to ", " -> ");
+function createRouteTrack(dispatchType: DispatchTypeValue) {
+  return dispatchType ? dispatchType.replaceAll(" to ", " -> ") : "";
 }
 
 function createInitialFormValue(initialDispatch?: {
   containerNumber: string;
-  dispatchType: DispatchType;
+  dispatchType: DispatchTypeValue;
   driver: string;
   loadType: DispatchLoadType;
 }) {
@@ -195,16 +194,34 @@ function DispatchFormContent({
     null;
   const selectedDriver =
     drivers.find((driver) => driver.name === form.driver) ?? null;
-  const routePreview = resolveRoute(form.dispatchType, selectedContainer, yards);
-  const linkedAssetsCount = [form.containerNumber, form.driver].filter(Boolean).length;
+  const deliveryLocationPreview = resolveDispatchDestination(
+    form.dispatchType,
+    selectedContainer,
+    yards,
+  );
+  const linkedAssetsCount = [
+    form.containerNumber,
+    form.dispatchType,
+    form.driver,
+  ].filter(Boolean).length;
   const isEditing = Boolean(dispatchId);
-  const inheritedDocsCount = selectedContainer?.documents.length ?? 0;
-  const ratePreview = selectedContainer?.baseRate || "Pending after activation";
-  const destinationLabel =
-    form.dispatchType === "Port to Warehouse" ||
-    form.dispatchType === "Yard to Warehouse"
-      ? "Warehouse endpoint"
-      : "Yard/Port endpoint";
+  const driverBriefCount = selectedContainer
+    ? [
+        selectedContainer.containerNumber,
+        selectedContainer.deliveryType,
+        selectedContainer.pickupLocation,
+        selectedContainer.pickupBookingTime,
+        selectedContainer.gateCode,
+        selectedContainer.pin,
+        deliveryLocationPreview,
+        selectedContainer.deliveryBookingTime,
+        selectedContainer.size,
+        selectedContainer.shippingLine,
+        selectedContainer.sealNumber,
+        selectedContainer.checkedInNumber,
+        selectedContainer.scac,
+      ].filter(Boolean).length
+    : 0;
 
   function handleContainerChange(containerNumber: string) {
     const nextContainer =
@@ -218,7 +235,7 @@ function DispatchFormContent({
     }));
   }
 
-  function handleDispatchTypeChange(dispatchType: DispatchType) {
+  function handleDispatchTypeChange(dispatchType: DispatchTypeValue) {
     setForm((currentForm) => ({
       ...currentForm,
       dispatchType,
@@ -239,40 +256,46 @@ function DispatchFormContent({
     }));
   }
 
-  const payload: DispatchInput | null =
-    selectedContainer && selectedDriver
-      ? {
+  const payload: DispatchInput | null = selectedContainer
+    ? {
           chassisNumber: selectedContainer.chassis,
+          checkedInNumber: selectedContainer.checkedInNumber,
           containerNumber: selectedContainer.containerNumber,
-          currencyType: selectedContainer.currencyType,
-          customer: selectedContainer.customer,
+          currencyType: "",
+          customer: "",
+          deliveryType: selectedContainer.deliveryType,
           deliveryWindow: normalizeDateTimeInput(
-            selectedContainer.lfd || selectedContainer.shipEta,
+            selectedContainer.deliveryBookingTime ||
+              selectedContainer.lfd ||
+              selectedContainer.shipEta,
             "18:00",
           ),
-          destination: routePreview.destination,
+          destination: deliveryLocationPreview,
           dispatchType: form.dispatchType,
           dispatcher: DISPATCHER_NAME,
-          documents: selectedContainer.documents,
-          driver: selectedDriver.name,
-          equipmentType: selectedDriver.vehicleType,
+          documents: [],
+          driver: selectedDriver?.name ?? form.driver,
+          equipmentType: selectedDriver?.vehicleType ?? "",
+          gateCode: selectedContainer.gateCode,
           loadNumber: createLoadNumber(selectedContainer, form.dispatchType),
           loadType: form.loadType,
-          notes: selectedContainer.notes,
-          origin: routePreview.origin,
+          notes: "",
+          origin: selectedContainer.pickupLocation,
+          pin: selectedContainer.pin,
           pickupWindow: normalizeDateTimeInput(
             selectedContainer.pickupBookingTime,
             "09:00",
           ),
-          priority:
-            selectedContainer.waiting && Number(selectedContainer.waiting) >= 60
-              ? "Critical"
-              : "Standard",
+          priority: "Standard",
           rate: "",
           routeTrack: createRouteTrack(form.dispatchType),
+          scac: selectedContainer.scac,
+          sealNumber: selectedContainer.sealNumber,
+          shippingLine: selectedContainer.shippingLine,
+          size: selectedContainer.size,
           status: "Scheduled",
         }
-      : null;
+    : null;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -331,9 +354,9 @@ function DispatchFormContent({
               {isEditing ? "Edit dispatch" : "Create dispatch"}
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-              Start from the existing container record, choose the dispatch move,
-              assign a driver, and let the system pull the linked details for the
-              live board.
+              Start from the existing container record and generate a driver-safe
+              dispatch handoff with pickup, delivery, and container instructions
+              only.
             </p>
           </div>
 
@@ -360,16 +383,16 @@ function DispatchFormContent({
                     Step 01
                   </p>
                   <h4 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
-                    Create from linked records
+                    Create from linked container
                   </h4>
                   <p className="mt-2 max-w-2xl text-sm leading-7 text-muted">
-                    Choose the container, confirm the load type, select the
-                    dispatch move, and assign the driver. Everything else is
-                    inherited from the records you already created.
+                    Choose the container and confirm the load type. Dispatch type
+                    and driver can be assigned now or updated later without
+                    re-entering the driver-safe operational details.
                   </p>
                 </div>
                 <div className="inline-flex rounded-full border border-white/70 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink shadow-sm">
-                  4 input workflow
+                  Create now, assign later
                 </div>
               </div>
 
@@ -415,10 +438,13 @@ function DispatchFormContent({
                   <select
                     value={form.dispatchType}
                     onChange={(event) =>
-                      handleDispatchTypeChange(event.target.value as DispatchType)
+                      handleDispatchTypeChange(
+                        event.target.value as DispatchTypeValue,
+                      )
                     }
                     className={inputClassName}
                   >
+                    <option value="">Assign later</option>
                     {dispatchTypeOptions.map((option) => (
                       <option key={option} value={option}>
                         {option}
@@ -432,7 +458,6 @@ function DispatchFormContent({
                     Select driver
                   </span>
                   <select
-                    required
                     value={form.driver}
                     onChange={(event) => handleDriverChange(event.target.value)}
                     className={inputClassName}
@@ -461,7 +486,7 @@ function DispatchFormContent({
                   </h4>
                 </div>
                 <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-muted shadow-sm">
-                  Auto-filled from records
+                  Driver-safe fields only
                 </div>
               </div>
 
@@ -469,126 +494,139 @@ function DispatchFormContent({
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
                   <article className="rounded-[24px] border border-line bg-white p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                      Container details
+                      Container snapshot
                     </p>
                     <div className="mt-4 space-y-3 text-sm text-muted">
                       <p>
-                        <span className="font-semibold text-ink">Customer:</span>{" "}
-                        {selectedContainer.customer}
+                        <span className="font-semibold text-ink">Container:</span>{" "}
+                        {selectedContainer.containerNumber || "Not added"}
                       </p>
                       <p>
-                        <span className="font-semibold text-ink">Booking:</span>{" "}
-                        {selectedContainer.bookingNumber || "Not added"}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-ink">Shipping line:</span>{" "}
-                        {selectedContainer.shippingLine || "Not added"}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-ink">Port:</span>{" "}
-                        {selectedContainer.port || "Not added"}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-ink">Chassis:</span>{" "}
-                        {selectedContainer.chassis || "Not added"}
-                      </p>
-                    </div>
-                  </article>
-
-                  <article className="rounded-[24px] border border-line bg-white p-5 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                      Dispatch route
-                    </p>
-                    <div className="mt-4 space-y-3 text-sm text-muted">
-                      <p>
-                        <span className="font-semibold text-ink">Track order:</span>{" "}
-                        {createRouteTrack(form.dispatchType)}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-ink">Origin:</span>{" "}
-                        {routePreview.origin || "Awaiting container route"}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-ink">Pickup point:</span>{" "}
-                        {selectedContainer.pickupLocation || "Not added"}
+                        <span className="font-semibold text-ink">Load type:</span>{" "}
+                        {form.loadType}
                       </p>
                       <p>
                         <span className="font-semibold text-ink">
-                          {destinationLabel}:
+                          Delivery type:
                         </span>{" "}
-                        {routePreview.destination || "Awaiting route mapping"}
+                        {selectedContainer.deliveryType || "Not added"}
                       </p>
                       <p>
-                        <span className="font-semibold text-ink">Pickup slot:</span>{" "}
-                        {selectedContainer.pickupBookingTime || "Not scheduled"}
+                        <span className="font-semibold text-ink">Size:</span>{" "}
+                        {selectedContainer.size || "Not added"}
                       </p>
                       <p>
-                        <span className="font-semibold text-ink">LFD / ETA:</span>{" "}
-                        {selectedContainer.lfd || selectedContainer.shipEta || "Not added"}
+                        <span className="font-semibold text-ink">
+                          Shipping line:
+                        </span>{" "}
+                        {selectedContainer.shippingLine || "Not added"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-ink">SCAC:</span>{" "}
+                        {selectedContainer.scac || "Not added"}
                       </p>
                     </div>
                   </article>
 
                   <article className="rounded-[24px] border border-line bg-white p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                      Selected driver
+                      Pickup instructions
+                    </p>
+                    <div className="mt-4 space-y-3 text-sm text-muted">
+                      <p>
+                        <span className="font-semibold text-ink">
+                          Pick up location:
+                        </span>{" "}
+                        {selectedContainer.pickupLocation || "Not added"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-ink">Pick up time:</span>{" "}
+                        {selectedContainer.pickupBookingTime || "Not scheduled"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-ink">Gate code:</span>{" "}
+                        {selectedContainer.gateCode || "Not added"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-ink">PIN:</span>{" "}
+                        {selectedContainer.pin || "Not added"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-ink">
+                          Checked in ID:
+                        </span>{" "}
+                        {selectedContainer.checkedInNumber || "Not added"}
+                      </p>
+                    </div>
+                  </article>
+
+                  <article className="rounded-[24px] border border-line bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                      Delivery instructions
+                    </p>
+                    <div className="mt-4 space-y-3 text-sm text-muted">
+                      <p>
+                        <span className="font-semibold text-ink">
+                          Dispatch type:
+                        </span>{" "}
+                        {form.dispatchType || "Assign later"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-ink">
+                          Delivery location:
+                        </span>{" "}
+                        {deliveryLocationPreview || "Not added"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-ink">
+                          Delivery time:
+                        </span>{" "}
+                        {selectedContainer.deliveryBookingTime ||
+                          selectedContainer.lfd ||
+                          selectedContainer.shipEta ||
+                          "Not scheduled"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-ink">Seal:</span>{" "}
+                        {selectedContainer.sealNumber || "Not added"}
+                      </p>
+                    </div>
+                  </article>
+
+                  <article className="rounded-[24px] border border-line bg-white p-5 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                      Driver assignment
                     </p>
                     <div className="mt-4 space-y-3 text-sm text-muted">
                       <p>
                         <span className="font-semibold text-ink">Driver:</span>{" "}
-                        {selectedDriver?.name || "Select driver"}
+                        {selectedDriver?.name || "Assign later"}
                       </p>
                       <p>
-                        <span className="font-semibold text-ink">Vehicle type:</span>{" "}
+                        <span className="font-semibold text-ink">
+                          Vehicle type:
+                        </span>{" "}
                         {selectedDriver?.vehicleType || "Pending"}
                       </p>
                       <p>
-                        <span className="font-semibold text-ink">Base location:</span>{" "}
+                        <span className="font-semibold text-ink">
+                          Base location:
+                        </span>{" "}
                         {selectedDriver?.baseLocation || "Pending"}
                       </p>
                       <p>
-                        <span className="font-semibold text-ink">Contact:</span>{" "}
-                        {selectedDriver?.phone || "Pending"}
-                      </p>
-                    </div>
-                  </article>
-
-                  <article className="rounded-[24px] border border-line bg-white p-5 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                      Pricing handoff
-                    </p>
-                    <div className="mt-4 space-y-3 text-sm text-muted">
-                      <p>
                         <span className="font-semibold text-ink">
-                          Current container rate:
+                          Route track:
                         </span>{" "}
-                        {selectedContainer.currencyType} {ratePreview}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-ink">
-                          Driver payout:
-                        </span>{" "}
-                        To be added after dispatch activation
-                      </p>
-                      <p>
-                        <span className="font-semibold text-ink">
-                          Future dynamic charges:
-                        </span>{" "}
-                        Waiting, detention, escort, toll, or custom lines
-                      </p>
-                      <p>
-                        <span className="font-semibold text-ink">
-                          Linked documents:
-                        </span>{" "}
-                        {selectedContainer.documents.length} file(s)
+                        {createRouteTrack(form.dispatchType) || "Assign later"}
                       </p>
                     </div>
                   </article>
                 </div>
               ) : (
                 <div className="mt-6 rounded-[24px] border border-dashed border-line bg-white/70 px-5 py-8 text-sm text-muted">
-                  Select a container first. The customer, pickup, destination,
-                  chassis, and linked document context will appear here.
+                  Select a container first. The pickup, delivery, gate, seal,
+                  and container handoff details will appear here.
                 </div>
               )}
             </div>
@@ -596,9 +634,9 @@ function DispatchFormContent({
             <div className="rounded-[28px] border border-line bg-panel p-5 shadow-[0_16px_40px_rgba(15,23,42,0.04)] sm:p-6">
               <div className="flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(15,108,189,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
-                  This step creates the active dispatch only. Driver-specific
-                  pricing and extra charge lines will be added in the next phase
-                  after the dispatch is active.
+                  This step creates the dispatch using the reduced operational
+                  handoff only. Dispatch type and driver can stay empty and be
+                  updated later.
                 </p>
                 <button
                   type="submit"
@@ -676,13 +714,14 @@ function DispatchFormContent({
 
             <div className="rounded-[28px] border border-line bg-panel p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
-                Inherited docs
+                Safe handoff fields
               </p>
               <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-                {inheritedDocsCount}
+                {driverBriefCount}
               </p>
               <p className="mt-2 text-sm leading-6 text-muted">
-                Documents already linked from the selected container record.
+                Driver-safe operational details available from the selected
+                container.
               </p>
             </div>
           </aside>

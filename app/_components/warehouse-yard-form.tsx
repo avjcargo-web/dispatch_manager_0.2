@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createFilesFromNames } from "./file-upload-utils";
 import { FileUploadCard } from "./file-upload-card";
+import type { WarehouseYardRecord } from "./warehouse-yard-store";
 
 type FacilityType = "Warehouse" | "Yard";
 
@@ -102,16 +104,38 @@ const facilityContent: Record<
 
 export function WarehouseYardForm({
   facilityType,
+  facilityId,
+  initialFacility,
 }: {
+  facilityId?: string;
   facilityType: FacilityType;
+  initialFacility?: WarehouseYardRecord;
 }) {
   const router = useRouter();
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() =>
+    initialFacility
+      ? {
+          address: initialFacility.address,
+          capacity: initialFacility.capacity,
+          city: initialFacility.city,
+          docks: String(initialFacility.docks),
+          email: initialFacility.email,
+          manager: initialFacility.manager,
+          name: initialFacility.name,
+          notes: initialFacility.notes,
+          operatingWindow: initialFacility.operatingWindow,
+          phone: initialFacility.phone,
+        }
+      : initialForm,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [siteDocs, setSiteDocs] = useState<File[]>([]);
+  const [siteDocs, setSiteDocs] = useState<File[]>(() =>
+    createFilesFromNames(initialFacility?.documents ?? []),
+  );
   const [opsDocs, setOpsDocs] = useState<File[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const content = facilityContent[facilityType];
+  const isEditing = Boolean(facilityId);
 
   function handleChange(
     event: React.ChangeEvent<
@@ -132,17 +156,23 @@ export function WarehouseYardForm({
 
     try {
       const endpoint =
-        facilityType === "Warehouse" ? "/api/warehouses" : "/api/yards";
+        facilityType === "Warehouse"
+          ? facilityId
+            ? `/api/warehouses/${encodeURIComponent(facilityId)}`
+            : "/api/warehouses"
+          : facilityId
+            ? `/api/yards/${encodeURIComponent(facilityId)}`
+            : "/api/yards";
       const response = await fetch(endpoint, {
         body: JSON.stringify({
-        ...form,
-        docks: Number(form.docks) || 0,
-        documents: [...siteDocs, ...opsDocs].map((file) => file.name),
+          ...form,
+          docks: Number(form.docks) || 0,
+          documents: [...siteDocs, ...opsDocs].map((file) => file.name),
         }),
         headers: {
           "Content-Type": "application/json",
         },
-        method: "POST",
+        method: facilityId ? "PATCH" : "POST",
       });
 
       if (!response.ok) {
@@ -157,8 +187,12 @@ export function WarehouseYardForm({
 
       router.push(
         facilityType === "Warehouse"
-          ? "/dashboard/warehouses?created=1"
-          : "/dashboard/yards?created=1",
+          ? facilityId
+            ? "/dashboard/warehouses?updated=1"
+            : "/dashboard/warehouses?created=1"
+          : facilityId
+            ? "/dashboard/yards?updated=1"
+            : "/dashboard/yards?created=1",
       );
     } catch (error) {
       setSubmitError(
@@ -180,10 +214,14 @@ export function WarehouseYardForm({
               {content.eyebrow}
             </p>
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-              {content.addTitle}
+              {isEditing
+                ? `Edit ${facilityType.toLowerCase()}`
+                : content.addTitle}
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-              {content.description}
+              {isEditing
+                ? `Update the ${facilityType.toLowerCase()} profile, operations details, and attached documents while keeping the current site record intact.`
+                : content.description}
             </p>
           </div>
 
@@ -407,14 +445,22 @@ export function WarehouseYardForm({
 
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(15,108,189,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
-                  {content.docsSaveLabel}
+                  {isEditing
+                    ? `The ${facilityType.toLowerCase()} and selected document names will update the saved MySQL record and refresh immediately in the list.`
+                    : content.docsSaveLabel}
                 </p>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isSubmitting ? content.buttonSaving : content.buttonSubmit}
+                  {isSubmitting
+                    ? isEditing
+                      ? `Updating ${facilityType.toLowerCase()}...`
+                      : content.buttonSaving
+                    : isEditing
+                      ? `Update ${facilityType.toLowerCase()}`
+                      : content.buttonSubmit}
                 </button>
               </div>
             </div>

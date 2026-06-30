@@ -21,6 +21,16 @@ const pageMap: Record<
     title: "Add new customer",
     searchLabel: "Search customer, company, city",
   },
+  "/dashboard/shipping-lines": {
+    eyebrow: "Shipping line management",
+    title: "Shipping line directory",
+    searchLabel: "Search carrier, SCAC, city, contact",
+  },
+  "/dashboard/shipping-lines/new": {
+    eyebrow: "Shipping line management",
+    title: "Add new shipping line",
+    searchLabel: "Search carrier, SCAC, city, contact",
+  },
   "/dashboard/drivers": {
     eyebrow: "Driver management",
     title: "Driver directory",
@@ -105,12 +115,68 @@ export function PortalPageHeader() {
           searchLabel: "Search load, driver, route, customer",
         }
       : null) ??
+    (pathname.startsWith("/dashboard/customers/") &&
+    pathname !== "/dashboard/customers/new"
+      ? {
+          eyebrow: "Customer management",
+          title: "Edit customer",
+          searchLabel: "Search customer, company, city",
+        }
+      : null) ??
     (pathname.startsWith("/dashboard/containers/") &&
     pathname !== "/dashboard/containers/new"
       ? {
           eyebrow: "Container management",
           title: "Edit container",
           searchLabel: "Search container, owner, location, customer",
+        }
+      : null) ??
+    (pathname.startsWith("/dashboard/ports/") &&
+    pathname !== "/dashboard/ports/new"
+      ? {
+          eyebrow: "Port management",
+          title: "Edit port",
+          searchLabel: "Search port, code, city, authority",
+        }
+      : null) ??
+    (pathname.startsWith("/dashboard/drivers/") &&
+    pathname !== "/dashboard/drivers/new"
+      ? {
+          eyebrow: "Driver management",
+          title: "Edit driver",
+          searchLabel: "Search driver, license, base location",
+        }
+      : null) ??
+    (pathname.startsWith("/dashboard/warehouses/") &&
+    pathname !== "/dashboard/warehouses/new"
+      ? {
+          eyebrow: "Warehouse management",
+          title: "Edit warehouse",
+          searchLabel: "Search site, city, manager, capacity",
+        }
+      : null) ??
+    (pathname.startsWith("/dashboard/yards/") &&
+    pathname !== "/dashboard/yards/new"
+      ? {
+          eyebrow: "Yard management",
+          title: "Edit yard",
+          searchLabel: "Search site, city, manager, capacity",
+        }
+      : null) ??
+    (pathname.startsWith("/dashboard/chassis/") &&
+    pathname !== "/dashboard/chassis/new"
+      ? {
+          eyebrow: "Chassis management",
+          title: "Edit chassis",
+          searchLabel: "Search chassis, owner, location, container",
+        }
+      : null) ??
+    (pathname.startsWith("/dashboard/shipping-lines/") &&
+    pathname !== "/dashboard/shipping-lines/new"
+      ? {
+          eyebrow: "Shipping line management",
+          title: "Edit shipping line",
+          searchLabel: "Search carrier, SCAC, city, contact",
         }
       : pageMap["/dashboard"]);
 

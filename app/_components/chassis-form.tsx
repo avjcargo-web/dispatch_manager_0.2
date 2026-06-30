@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createFilesFromNames } from "./file-upload-utils";
 import { FileUploadCard } from "./file-upload-card";
+import type { ChassisRecord } from "./chassis-store";
 
 const initialForm = {
   chassisNumber: "",
@@ -44,13 +46,55 @@ const chassisChecklist = [
   "Inspection notes and files attached",
 ];
 
-export function ChassisForm() {
+function createInitialFormValue(
+  initialChassis?: Pick<
+    ChassisRecord,
+    | "assignedContainer"
+    | "chassisNumber"
+    | "condition"
+    | "currentLocation"
+    | "lastInspection"
+    | "notes"
+    | "owner"
+    | "sizeCompatibility"
+    | "type"
+  >,
+) {
+  if (!initialChassis) {
+    return initialForm;
+  }
+
+  return {
+    assignedContainer: initialChassis.assignedContainer,
+    chassisNumber: initialChassis.chassisNumber,
+    condition: initialChassis.condition,
+    currentLocation: initialChassis.currentLocation,
+    lastInspection: initialChassis.lastInspection,
+    notes: initialChassis.notes,
+    owner: initialChassis.owner,
+    sizeCompatibility: initialChassis.sizeCompatibility,
+    type: initialChassis.type,
+  };
+}
+
+type ChassisFormProps = {
+  chassisId?: string;
+  initialChassis?: ChassisRecord;
+};
+
+export function ChassisForm({
+  chassisId,
+  initialChassis,
+}: ChassisFormProps) {
   const router = useRouter();
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() => createInitialFormValue(initialChassis));
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [inspectionDocs, setInspectionDocs] = useState<File[]>([]);
+  const [inspectionDocs, setInspectionDocs] = useState<File[]>(() =>
+    createFilesFromNames(initialChassis?.documents ?? []),
+  );
   const [movementDocs, setMovementDocs] = useState<File[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const isEditing = Boolean(chassisId);
 
   function handleChange(
     event: React.ChangeEvent<
@@ -70,16 +114,19 @@ export function ChassisForm() {
     setSubmitError(null);
 
     try {
-      const response = await fetch("/api/chassis", {
+      const response = await fetch(
+        chassisId ? `/api/chassis/${encodeURIComponent(chassisId)}` : "/api/chassis",
+        {
         body: JSON.stringify({
-        ...form,
-        documents: [...inspectionDocs, ...movementDocs].map((file) => file.name),
+          ...form,
+          documents: [...inspectionDocs, ...movementDocs].map((file) => file.name),
         }),
         headers: {
           "Content-Type": "application/json",
         },
-        method: "POST",
-      });
+          method: chassisId ? "PATCH" : "POST",
+        },
+      );
 
       if (!response.ok) {
         const error = (await response.json().catch(() => null)) as
@@ -88,7 +135,11 @@ export function ChassisForm() {
         throw new Error(error?.message || "Failed to save chassis.");
       }
 
-      router.push("/dashboard/chassis?created=1");
+      router.push(
+        chassisId
+          ? "/dashboard/chassis?updated=1"
+          : "/dashboard/chassis?created=1",
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "Failed to save chassis.",
@@ -107,11 +158,12 @@ export function ChassisForm() {
               Chassis section
             </p>
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-              Add chassis
+              {isEditing ? "Edit chassis" : "Add chassis"}
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-              Create a new chassis profile with compatibility, inspection, and
-              movement details so the asset can be assigned into operations.
+              {isEditing
+                ? "Update the chassis profile, compatibility, and inspection details while keeping the equipment history intact."
+                : "Create a new chassis profile with compatibility, inspection, and movement details so the asset can be assigned into operations."}
             </p>
           </div>
 
@@ -334,14 +386,22 @@ export function ChassisForm() {
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(15,108,189,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
                   The chassis and selected document names will be saved in
-                  MySQL and shown immediately in the chassis list.
+                  {isEditing
+                    ? " MySQL and reflected immediately in the chassis list."
+                    : " MySQL and shown immediately in the chassis list."}
                 </p>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isSubmitting ? "Saving chassis..." : "Save chassis"}
+                  {isSubmitting
+                    ? isEditing
+                      ? "Updating chassis..."
+                      : "Saving chassis..."
+                    : isEditing
+                      ? "Update chassis"
+                      : "Save chassis"}
                 </button>
               </div>
             </div>

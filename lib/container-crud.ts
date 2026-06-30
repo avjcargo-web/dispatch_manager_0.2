@@ -15,6 +15,8 @@ export type ContainerStatus =
   | "Under Inspection"
   | "Cancelled";
 
+export type DeliveryType = "" | "Live" | "Drop" | "SOC";
+
 export type ContainerRecord = {
   additionalCharges: ContainerCharge[];
   baseRate: string;
@@ -25,11 +27,15 @@ export type ContainerRecord = {
   createdAt: string;
   currencyType: string;
   customer: string;
+  deliveryBookingTime: string;
+  deliveryType: DeliveryType;
   documents: string[];
+  gateCode: string;
   id: string;
   lfd: string;
   loadType: "Import" | "Export";
   notes: string;
+  pin: string;
   port: string;
   pickupBookingTime: string;
   pickupLocation: string;
@@ -57,10 +63,14 @@ export type ContainerCreateInput = {
   containerNumber: string;
   currencyType: string;
   customer: string;
+  deliveryBookingTime: string;
+  deliveryType: DeliveryType;
   documents?: string[];
+  gateCode: string;
   lfd: string;
   loadType: "Import" | "Export";
   notes: string;
+  pin: string;
   port: string;
   pickupBookingTime: string;
   pickupLocation: string;
@@ -91,11 +101,15 @@ type ContainerRow = RowDataPacket & {
   created_at: Date | string;
   currency_type: string;
   customer: string;
+  delivery_booking_time: string;
+  delivery_type: DeliveryType;
   documents: string | string[] | null;
+  gate_code: string;
   id: string;
   lfd: string;
   load_type: "Import" | "Export";
   notes: string;
+  pin: string;
   port: string;
   pickup_booking_time: string;
   pickup_location: string;
@@ -115,7 +129,7 @@ type ContainerRow = RowDataPacket & {
 };
 
 declare global {
-  var __freightflow_containers_table_ready__: Promise<void> | undefined;
+  var __freightflow_containers_table_ready_v2__: Promise<void> | undefined;
 }
 
 function asString(value: unknown, fallback = "") {
@@ -189,9 +203,22 @@ function toIsoString(value: Date | string) {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+function normalizeDeliveryType(value: unknown): DeliveryType {
+  if (value === "Live" || value === "Drop" || value === "SOC") {
+    return value;
+  }
+
+  return "";
+}
+
 async function ensureColumnExists(
   tableName: "containers",
-  columnName: "port",
+  columnName:
+    | "delivery_booking_time"
+    | "delivery_type"
+    | "gate_code"
+    | "pin"
+    | "port",
   definitionSql: string,
 ) {
   const pool = getMySqlPool();
@@ -232,6 +259,10 @@ async function initializeContainersTable() {
           warehouse VARCHAR(191) NOT NULL,
           warehouse_address VARCHAR(255) NOT NULL,
           checked_in_number VARCHAR(128) NOT NULL,
+          delivery_booking_time VARCHAR(64) NOT NULL DEFAULT '',
+          delivery_type VARCHAR(32) NOT NULL DEFAULT '',
+          gate_code VARCHAR(128) NOT NULL DEFAULT '',
+          pin VARCHAR(64) NOT NULL DEFAULT '',
           weight_lbs VARCHAR(64) NOT NULL,
           currency_type VARCHAR(16) NOT NULL,
           base_rate VARCHAR(64) NOT NULL,
@@ -253,27 +284,85 @@ async function initializeContainersTable() {
     "port",
     "port VARCHAR(191) NOT NULL DEFAULT '' AFTER customer",
   );
+
+  await ensureColumnExists(
+    "containers",
+    "delivery_booking_time",
+    "delivery_booking_time VARCHAR(64) NOT NULL DEFAULT '' AFTER pickup_booking_time",
+  );
+
+  await ensureColumnExists(
+    "containers",
+    "delivery_type",
+    "delivery_type VARCHAR(32) NOT NULL DEFAULT '' AFTER delivery_booking_time",
+  );
+
+  await ensureColumnExists(
+    "containers",
+    "gate_code",
+    "gate_code VARCHAR(128) NOT NULL DEFAULT '' AFTER checked_in_number",
+  );
+
+  await ensureColumnExists(
+    "containers",
+    "pin",
+    "pin VARCHAR(64) NOT NULL DEFAULT '' AFTER gate_code",
+  );
+}
+
+async function ensureContainersSchema() {
+  await ensureColumnExists(
+    "containers",
+    "port",
+    "port VARCHAR(191) NOT NULL DEFAULT '' AFTER customer",
+  );
+
+  await ensureColumnExists(
+    "containers",
+    "delivery_booking_time",
+    "delivery_booking_time VARCHAR(64) NOT NULL DEFAULT '' AFTER pickup_booking_time",
+  );
+
+  await ensureColumnExists(
+    "containers",
+    "delivery_type",
+    "delivery_type VARCHAR(32) NOT NULL DEFAULT '' AFTER delivery_booking_time",
+  );
+
+  await ensureColumnExists(
+    "containers",
+    "gate_code",
+    "gate_code VARCHAR(128) NOT NULL DEFAULT '' AFTER checked_in_number",
+  );
+
+  await ensureColumnExists(
+    "containers",
+    "pin",
+    "pin VARCHAR(64) NOT NULL DEFAULT '' AFTER gate_code",
+  );
 }
 
 async function ensureContainersTable() {
   await connection();
 
-  if (globalThis.__freightflow_containers_table_ready__) {
+  if (globalThis.__freightflow_containers_table_ready_v2__) {
     try {
-      await globalThis.__freightflow_containers_table_ready__;
+      await globalThis.__freightflow_containers_table_ready_v2__;
+      await ensureContainersSchema();
       return;
     } catch {
-      globalThis.__freightflow_containers_table_ready__ = undefined;
+      globalThis.__freightflow_containers_table_ready_v2__ = undefined;
     }
   }
 
-  globalThis.__freightflow_containers_table_ready__ =
+  globalThis.__freightflow_containers_table_ready_v2__ =
     initializeContainersTable().catch((error) => {
-      globalThis.__freightflow_containers_table_ready__ = undefined;
+      globalThis.__freightflow_containers_table_ready_v2__ = undefined;
       throw error;
     });
 
-  await globalThis.__freightflow_containers_table_ready__;
+  await globalThis.__freightflow_containers_table_ready_v2__;
+  await ensureContainersSchema();
 }
 
 function mapContainer(row: ContainerRow): ContainerRecord {
@@ -287,11 +376,15 @@ function mapContainer(row: ContainerRow): ContainerRecord {
     createdAt: toIsoString(row.created_at),
     currencyType: row.currency_type,
     customer: row.customer,
+    deliveryBookingTime: row.delivery_booking_time,
+    deliveryType: normalizeDeliveryType(row.delivery_type),
     documents: asDocuments(row.documents),
+    gateCode: row.gate_code,
     id: row.id,
     lfd: row.lfd,
     loadType: row.load_type,
     notes: row.notes,
+    pin: row.pin,
     port: row.port,
     pickupBookingTime: row.pickup_booking_time,
     pickupLocation: row.pickup_location,
@@ -333,11 +426,15 @@ export async function createContainer(input: ContainerCreateInput) {
     createdAt: new Date().toISOString(),
     currencyType: asString(input.currencyType, "USD"),
     customer: asString(input.customer),
+    deliveryBookingTime: asString(input.deliveryBookingTime),
+    deliveryType: normalizeDeliveryType(input.deliveryType),
     documents: asDocuments(input.documents),
+    gateCode: asString(input.gateCode),
     id: createId("CONT"),
     lfd: asString(input.lfd),
     loadType: input.loadType === "Export" ? "Export" : "Import",
     notes: asString(input.notes),
+    pin: asString(input.pin),
     port: asString(input.port),
     pickupBookingTime: asString(input.pickupBookingTime),
     pickupLocation: asString(input.pickupLocation),
@@ -355,18 +452,49 @@ export async function createContainer(input: ContainerCreateInput) {
     warehouseAddress: asString(input.warehouseAddress),
     weightLbs: asString(input.weightLbs),
   };
+  const sqlRecord = {
+    additionalCharges: JSON.stringify(record.additionalCharges),
+    baseRate: record.baseRate,
+    bookingNumber: record.bookingNumber,
+    chassis: record.chassis,
+    checkedInNumber: record.checkedInNumber,
+    containerNumber: record.containerNumber,
+    createdAt: toSqlDateTime(record.createdAt),
+    currencyType: record.currencyType,
+    customer: record.customer,
+    deliveryBookingTime: record.deliveryBookingTime,
+    deliveryType: record.deliveryType,
+    documents: JSON.stringify(record.documents),
+    gateCode: record.gateCode,
+    id: record.id,
+    lfd: record.lfd,
+    loadType: record.loadType,
+    notes: record.notes,
+    pickupBookingTime: record.pickupBookingTime,
+    pickupLocation: record.pickupLocation,
+    pin: record.pin,
+    port: record.port,
+    prepull: record.prepull,
+    scac: record.scac,
+    sealNumber: record.sealNumber,
+    shipEta: record.shipEta,
+    shippingLine: record.shippingLine,
+    size: record.size,
+    status: record.status,
+    storage: record.storage,
+    type: record.type,
+    waiting: record.waiting,
+    warehouse: record.warehouse,
+    warehouseAddress: record.warehouseAddress,
+    weightLbs: record.weightLbs,
+  };
 
   await pool.execute(
     `INSERT INTO containers
-      (id, container_number, load_type, customer, port, booking_number, type, size, shipping_line, scac, seal_number, ship_eta, lfd, pickup_location, pickup_booking_time, warehouse, warehouse_address, checked_in_number, weight_lbs, currency_type, base_rate, prepull, chassis, storage, waiting, status, notes, additional_charges, documents, created_at)
+      (id, container_number, load_type, customer, port, booking_number, type, size, shipping_line, scac, seal_number, ship_eta, lfd, pickup_location, pickup_booking_time, delivery_booking_time, delivery_type, warehouse, warehouse_address, checked_in_number, gate_code, pin, weight_lbs, currency_type, base_rate, prepull, chassis, storage, waiting, status, notes, additional_charges, documents, created_at)
      VALUES
-      (:id, :containerNumber, :loadType, :customer, :port, :bookingNumber, :type, :size, :shippingLine, :scac, :sealNumber, :shipEta, :lfd, :pickupLocation, :pickupBookingTime, :warehouse, :warehouseAddress, :checkedInNumber, :weightLbs, :currencyType, :baseRate, :prepull, :chassis, :storage, :waiting, :status, :notes, :additionalCharges, :documents, :createdAt)`,
-    {
-      ...record,
-      additionalCharges: JSON.stringify(record.additionalCharges),
-      createdAt: toSqlDateTime(record.createdAt),
-      documents: JSON.stringify(record.documents),
-    },
+      (:id, :containerNumber, :loadType, :customer, :port, :bookingNumber, :type, :size, :shippingLine, :scac, :sealNumber, :shipEta, :lfd, :pickupLocation, :pickupBookingTime, :deliveryBookingTime, :deliveryType, :warehouse, :warehouseAddress, :checkedInNumber, :gateCode, :pin, :weightLbs, :currencyType, :baseRate, :prepull, :chassis, :storage, :waiting, :status, :notes, :additionalCharges, :documents, :createdAt)`,
+    sqlRecord,
   );
 
   return record;
@@ -395,33 +523,80 @@ export async function updateContainer(id: string, input: ContainerUpdateInput) {
     additionalCharges: input.additionalCharges
       ? asCharges(input.additionalCharges)
       : current.additionalCharges,
-    baseRate: input.baseRate ?? current.baseRate,
-    bookingNumber: input.bookingNumber ?? current.bookingNumber,
-    chassis: input.chassis ?? current.chassis,
-    checkedInNumber: input.checkedInNumber ?? current.checkedInNumber,
-    containerNumber: input.containerNumber ?? current.containerNumber,
-    currencyType: input.currencyType ?? current.currencyType,
-    customer: input.customer ?? current.customer,
+    baseRate: asString(input.baseRate ?? current.baseRate),
+    bookingNumber: asString(input.bookingNumber ?? current.bookingNumber),
+    chassis: asString(input.chassis ?? current.chassis),
+    checkedInNumber: asString(input.checkedInNumber ?? current.checkedInNumber),
+    containerNumber: asString(input.containerNumber ?? current.containerNumber),
+    currencyType: asString(input.currencyType ?? current.currencyType),
+    customer: asString(input.customer ?? current.customer),
+    deliveryBookingTime:
+      asString(input.deliveryBookingTime ?? current.deliveryBookingTime),
+    deliveryType:
+      input.deliveryType !== undefined
+        ? normalizeDeliveryType(input.deliveryType)
+        : normalizeDeliveryType(current.deliveryType),
     documents: input.documents ? asDocuments(input.documents) : current.documents,
-    lfd: input.lfd ?? current.lfd,
+    gateCode: asString(input.gateCode ?? current.gateCode),
+    lfd: asString(input.lfd ?? current.lfd),
     loadType: input.loadType ?? current.loadType,
-    notes: input.notes ?? current.notes,
-    port: input.port ?? current.port,
-    pickupBookingTime: input.pickupBookingTime ?? current.pickupBookingTime,
-    pickupLocation: input.pickupLocation ?? current.pickupLocation,
-    prepull: input.prepull ?? current.prepull,
-    scac: input.scac ?? current.scac,
-    sealNumber: input.sealNumber ?? current.sealNumber,
-    shipEta: input.shipEta ?? current.shipEta,
-    shippingLine: input.shippingLine ?? current.shippingLine,
-    size: input.size ?? current.size,
+    notes: asString(input.notes ?? current.notes),
+    pin: asString(input.pin ?? current.pin),
+    port: asString(input.port ?? current.port),
+    pickupBookingTime: asString(
+      input.pickupBookingTime ?? current.pickupBookingTime,
+    ),
+    pickupLocation: asString(input.pickupLocation ?? current.pickupLocation),
+    prepull: asString(input.prepull ?? current.prepull),
+    scac: asString(input.scac ?? current.scac),
+    sealNumber: asString(input.sealNumber ?? current.sealNumber),
+    shipEta: asString(input.shipEta ?? current.shipEta),
+    shippingLine: asString(input.shippingLine ?? current.shippingLine),
+    size: asString(input.size ?? current.size),
     status: input.status ?? current.status,
-    storage: input.storage ?? current.storage,
-    type: input.type ?? current.type,
-    waiting: input.waiting ?? current.waiting,
-    warehouse: input.warehouse ?? current.warehouse,
-    warehouseAddress: input.warehouseAddress ?? current.warehouseAddress,
-    weightLbs: input.weightLbs ?? current.weightLbs,
+    storage: asString(input.storage ?? current.storage),
+    type: asString(input.type ?? current.type),
+    waiting: asString(input.waiting ?? current.waiting),
+    warehouse: asString(input.warehouse ?? current.warehouse),
+    warehouseAddress: asString(
+      input.warehouseAddress ?? current.warehouseAddress,
+    ),
+    weightLbs: asString(input.weightLbs ?? current.weightLbs),
+  };
+  const sqlRecord = {
+    additionalCharges: JSON.stringify(next.additionalCharges),
+    baseRate: next.baseRate,
+    bookingNumber: next.bookingNumber,
+    chassis: next.chassis,
+    checkedInNumber: next.checkedInNumber,
+    containerNumber: next.containerNumber,
+    currencyType: next.currencyType,
+    customer: next.customer,
+    deliveryBookingTime: next.deliveryBookingTime,
+    deliveryType: next.deliveryType,
+    documents: JSON.stringify(next.documents),
+    gateCode: next.gateCode,
+    id,
+    lfd: next.lfd,
+    loadType: next.loadType,
+    notes: next.notes,
+    pickupBookingTime: next.pickupBookingTime,
+    pickupLocation: next.pickupLocation,
+    pin: next.pin,
+    port: next.port,
+    prepull: next.prepull,
+    scac: next.scac,
+    sealNumber: next.sealNumber,
+    shipEta: next.shipEta,
+    shippingLine: next.shippingLine,
+    size: next.size,
+    status: next.status,
+    storage: next.storage,
+    type: next.type,
+    waiting: next.waiting,
+    warehouse: next.warehouse,
+    warehouseAddress: next.warehouseAddress,
+    weightLbs: next.weightLbs,
   };
 
   await pool.execute(
@@ -440,9 +615,13 @@ export async function updateContainer(id: string, input: ContainerUpdateInput) {
       lfd = :lfd,
       pickup_location = :pickupLocation,
       pickup_booking_time = :pickupBookingTime,
+      delivery_booking_time = :deliveryBookingTime,
+      delivery_type = :deliveryType,
       warehouse = :warehouse,
       warehouse_address = :warehouseAddress,
       checked_in_number = :checkedInNumber,
+      gate_code = :gateCode,
+      pin = :pin,
       weight_lbs = :weightLbs,
       currency_type = :currencyType,
       base_rate = :baseRate,
@@ -455,12 +634,7 @@ export async function updateContainer(id: string, input: ContainerUpdateInput) {
       additional_charges = :additionalCharges,
       documents = :documents
      WHERE id = :id`,
-    {
-      ...next,
-      additionalCharges: JSON.stringify(next.additionalCharges),
-      documents: JSON.stringify(next.documents),
-      id,
-    },
+    sqlRecord,
   );
 
   return next;

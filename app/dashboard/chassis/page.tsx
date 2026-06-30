@@ -9,10 +9,17 @@ export const metadata: Metadata = {
 export default async function ChassisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; deleted?: string; updated?: string }>;
 }) {
-  const { created } = await searchParams;
+  const { created, deleted, updated } = await searchParams;
   const chassis = await listChassis();
 
-  return <ChassisList chassis={chassis} created={created === "1"} />;
+  return (
+    <ChassisList
+      chassis={chassis}
+      created={created === "1"}
+      deleted={deleted === "1"}
+      updated={updated === "1"}
+    />
+  );
 }

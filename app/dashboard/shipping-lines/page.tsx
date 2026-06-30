@@ -1,24 +1,24 @@
 import type { Metadata } from "next";
-import { CustomersList } from "@/app/_components/customers-list";
-import { listCustomers } from "@/lib/ops-crud";
+import { ShippingLinesList } from "@/app/_components/shipping-lines-list";
+import { listShippingLines } from "@/lib/ops-crud";
 
 export const metadata: Metadata = {
-  title: "Customers",
+  title: "Shipping Lines",
 };
 
-export default async function CustomersPage({
+export default async function ShippingLinesPage({
   searchParams,
 }: {
   searchParams: Promise<{ created?: string; deleted?: string; updated?: string }>;
 }) {
   const { created, deleted, updated } = await searchParams;
-  const customers = await listCustomers();
+  const shippingLines = await listShippingLines();
 
   return (
-    <CustomersList
+    <ShippingLinesList
       created={created === "1"}
-      customers={customers}
       deleted={deleted === "1"}
+      shippingLines={shippingLines}
       updated={updated === "1"}
     />
   );

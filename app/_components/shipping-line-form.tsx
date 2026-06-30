@@ -5,99 +5,101 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createFilesFromNames } from "./file-upload-utils";
 import { FileUploadCard } from "./file-upload-card";
-import type { PortRecord } from "./port-store";
+import type { ShippingLineRecord, ShippingLineStatus } from "./shipping-line-store";
 
 const initialForm = {
-  name: "",
-  code: "",
-  country: "",
   city: "",
-  terminalType: "Container Port",
-  authority: "",
   contactEmail: "",
   contactPhone: "",
-  operatingWindow: "24/7",
-  capacity: "",
+  country: "",
+  name: "",
   notes: "",
+  scac: "",
+  serviceMode: "Ocean Freight",
+  status: "Active" as ShippingLineStatus,
+  website: "",
 };
 
-const portSignals = [
+const shippingLineSignals = [
   {
+    detail:
+      "Capture carrier identity, SCAC, and contact coverage before linking the line into container planning.",
     label: "Deployment focus",
-    value: "Port readiness",
-    detail:
-      "Capture authority, operating window, and terminal profile before route planning.",
+    value: "Carrier readiness",
   },
   {
-    label: "Average setup",
-    value: "19 mins",
     detail:
-      "Complete port profiles move faster into container and shipment coordination.",
+      "A complete line master reduces retyping across container, dispatch, and customer workflows.",
+    label: "Operational gain",
+    value: "Shared carrier data",
   },
   {
-    label: "Suggested state",
-    value: "Ready for routing",
     detail:
-      "Helps teams link ports to customer, container, and dispatch movements immediately.",
+      "Preferred lines can be surfaced first when the team is creating new container records.",
+    label: "Suggested usage",
+    value: "Master record first",
   },
 ];
 
-const portChecklist = [
-  "Port code, city, and country captured",
-  "Authority and contact details verified",
-  "Operating notes and compliance files attached",
+const shippingLineChecklist = [
+  "Carrier name, SCAC, and service mode captured",
+  "Operations contact and geography verified",
+  "Notes and reference files attached",
 ];
 
 function createInitialFormValue(
-  initialPort?: Pick<
-    PortRecord,
-    | "authority"
-    | "capacity"
+  initialShippingLine?: Pick<
+    ShippingLineRecord,
     | "city"
-    | "code"
     | "contactEmail"
     | "contactPhone"
     | "country"
     | "name"
     | "notes"
-    | "operatingWindow"
-    | "terminalType"
+    | "scac"
+    | "serviceMode"
+    | "status"
+    | "website"
   >,
 ) {
-  if (!initialPort) {
+  if (!initialShippingLine) {
     return initialForm;
   }
 
   return {
-    authority: initialPort.authority,
-    capacity: initialPort.capacity,
-    city: initialPort.city,
-    code: initialPort.code,
-    contactEmail: initialPort.contactEmail,
-    contactPhone: initialPort.contactPhone,
-    country: initialPort.country,
-    name: initialPort.name,
-    notes: initialPort.notes,
-    operatingWindow: initialPort.operatingWindow,
-    terminalType: initialPort.terminalType,
+    city: initialShippingLine.city,
+    contactEmail: initialShippingLine.contactEmail,
+    contactPhone: initialShippingLine.contactPhone,
+    country: initialShippingLine.country,
+    name: initialShippingLine.name,
+    notes: initialShippingLine.notes,
+    scac: initialShippingLine.scac,
+    serviceMode: initialShippingLine.serviceMode,
+    status: initialShippingLine.status,
+    website: initialShippingLine.website,
   };
 }
 
-type PortFormProps = {
-  initialPort?: PortRecord;
-  portId?: string;
+type ShippingLineFormProps = {
+  initialShippingLine?: ShippingLineRecord;
+  shippingLineId?: string;
 };
 
-export function PortForm({ initialPort, portId }: PortFormProps) {
+export function ShippingLineForm({
+  initialShippingLine,
+  shippingLineId,
+}: ShippingLineFormProps) {
   const router = useRouter();
-  const [form, setForm] = useState(() => createInitialFormValue(initialPort));
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authorityDocs, setAuthorityDocs] = useState<File[]>(() =>
-    createFilesFromNames(initialPort?.documents ?? []),
+  const [form, setForm] = useState(() =>
+    createInitialFormValue(initialShippingLine),
   );
-  const [operationsDocs, setOperationsDocs] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profileDocs, setProfileDocs] = useState<File[]>(() =>
+    createFilesFromNames(initialShippingLine?.documents ?? []),
+  );
+  const [opsDocs, setOpsDocs] = useState<File[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const isEditing = Boolean(portId);
+  const isEditing = Boolean(shippingLineId);
 
   function handleChange(
     event: React.ChangeEvent<
@@ -118,16 +120,18 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
 
     try {
       const response = await fetch(
-        portId ? `/api/ports/${encodeURIComponent(portId)}` : "/api/ports",
+        shippingLineId
+          ? `/api/shipping-lines/${encodeURIComponent(shippingLineId)}`
+          : "/api/shipping-lines",
         {
-        body: JSON.stringify({
-          ...form,
-          documents: [...authorityDocs, ...operationsDocs].map((file) => file.name),
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-          method: portId ? "PATCH" : "POST",
+          body: JSON.stringify({
+            ...form,
+            documents: [...profileDocs, ...opsDocs].map((file) => file.name),
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: shippingLineId ? "PATCH" : "POST",
         },
       );
 
@@ -135,15 +139,17 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
         const error = (await response.json().catch(() => null)) as
           | { message?: string }
           | null;
-        throw new Error(error?.message || "Failed to save port.");
+        throw new Error(error?.message || "Failed to save shipping line.");
       }
 
       router.push(
-        portId ? "/dashboard/ports?updated=1" : "/dashboard/ports?created=1",
+        shippingLineId
+          ? "/dashboard/shipping-lines?updated=1"
+          : "/dashboard/shipping-lines?created=1",
       );
     } catch (error) {
       setSubmitError(
-        error instanceof Error ? error.message : "Failed to save port.",
+        error instanceof Error ? error.message : "Failed to save shipping line.",
       );
     } finally {
       setIsSubmitting(false);
@@ -156,23 +162,23 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-accent">
-              Port section
+              Shipping line section
             </p>
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-              {isEditing ? "Edit port" : "Add port"}
+              {isEditing ? "Edit shipping line" : "Add shipping line"}
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
               {isEditing
-                ? "Update the port profile, authority details, and terminal handling notes without losing the operational record."
-                : "Create a new port profile with authority, terminal, and capacity details so the location can be used by maritime operations teams."}
+                ? "Update the carrier master profile, contact information, and supporting documents without losing the existing master record."
+                : "Create a carrier master profile with SCAC, service coverage, and contact details so container teams can reuse it consistently."}
             </p>
           </div>
 
           <Link
-            href="/dashboard/ports"
+            href="/dashboard/shipping-lines"
             className="inline-flex h-12 items-center justify-center rounded-2xl border border-line px-5 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent"
           >
-            Back to port list
+            Back to shipping line list
           </Link>
         </div>
 
@@ -191,39 +197,38 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                     Step 01
                   </p>
                   <h4 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
-                    Port identity and geography
+                    Carrier identity and geography
                   </h4>
                   <p className="mt-2 max-w-2xl text-sm leading-7 text-muted">
-                    Start with the port name, official code, country, city, and
-                    terminal classification.
+                    Start with the shipping line name, SCAC, and the operating geography your team uses for planning.
                   </p>
                 </div>
                 <div className="inline-flex rounded-full border border-white/70 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink shadow-sm">
-                  Port profile
+                  Carrier master
                 </div>
               </div>
 
               <div className="mt-6 grid gap-5 md:grid-cols-2">
                 <label className="grid gap-2">
-                  <span className="text-sm font-medium text-ink">Port name</span>
+                  <span className="text-sm font-medium text-ink">Shipping line name</span>
                   <input
                     required
                     name="name"
                     value={form.name}
                     onChange={handleChange}
-                    placeholder="Enter port name"
+                    placeholder="Carrier or shipping line name"
                     className="h-13 rounded-2xl border border-white/70 bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
                   />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-medium text-ink">Port code</span>
+                  <span className="text-sm font-medium text-ink">SCAC</span>
                   <input
                     required
-                    name="code"
-                    value={form.code}
+                    name="scac"
+                    value={form.scac}
                     onChange={handleChange}
-                    placeholder="e.g. INNSA"
+                    placeholder="e.g. MSCU"
                     className="h-13 rounded-2xl border border-white/70 bg-white px-4 text-sm uppercase text-ink outline-none transition placeholder:normal-case placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
                   />
                 </label>
@@ -247,27 +252,9 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                     name="city"
                     value={form.city}
                     onChange={handleChange}
-                    placeholder="Port city"
+                    placeholder="Primary city or office hub"
                     className="h-13 rounded-2xl border border-white/70 bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
                   />
-                </label>
-
-                <label className="grid gap-2 md:col-span-2">
-                  <span className="text-sm font-medium text-ink">
-                    Terminal type
-                  </span>
-                  <select
-                    name="terminalType"
-                    value={form.terminalType}
-                    onChange={handleChange}
-                    className="h-13 rounded-2xl border border-white/70 bg-white px-4 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
-                  >
-                    <option>Container Port</option>
-                    <option>Mixed Cargo Port</option>
-                    <option>Bulk and Container</option>
-                    <option>Oil and Liquid Terminal</option>
-                    <option>Feeder Port</option>
-                  </select>
                 </label>
               </div>
             </div>
@@ -279,48 +266,59 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                     Step 02
                   </p>
                   <h4 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
-                    Authority and operating capacity
+                    Service and contact coverage
                   </h4>
                 </div>
                 <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-muted shadow-sm">
-                  Maritime ready
+                  Planning ready
                 </div>
               </div>
 
               <div className="mt-6 grid gap-5 md:grid-cols-2">
                 <label className="grid gap-2">
-                  <span className="text-sm font-medium text-ink">
-                    Port authority
-                  </span>
-                  <input
-                    required
-                    name="authority"
-                    value={form.authority}
+                  <span className="text-sm font-medium text-ink">Service mode</span>
+                  <select
+                    name="serviceMode"
+                    value={form.serviceMode}
                     onChange={handleChange}
-                    placeholder="Authority or controlling body"
-                    className="h-13 rounded-2xl border border-line bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
-                  />
+                    className="h-13 rounded-2xl border border-line bg-white px-4 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                  >
+                    <option>Ocean Freight</option>
+                    <option>Container Line</option>
+                    <option>Feeder Service</option>
+                    <option>Multimodal Carrier</option>
+                  </select>
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-medium text-ink">
-                    Contact email
-                  </span>
+                  <span className="text-sm font-medium text-ink">Status</span>
+                  <select
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                    className="h-13 rounded-2xl border border-line bg-white px-4 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10"
+                  >
+                    <option>Active</option>
+                    <option>Preferred</option>
+                    <option>Suspended</option>
+                  </select>
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-medium text-ink">Contact email</span>
                   <input
                     required
                     type="email"
                     name="contactEmail"
                     value={form.contactEmail}
                     onChange={handleChange}
-                    placeholder="ops@port.com"
+                    placeholder="ops@carrier.com"
                     className="h-13 rounded-2xl border border-line bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
                   />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-medium text-ink">
-                    Contact phone
-                  </span>
+                  <span className="text-sm font-medium text-ink">Contact phone</span>
                   <input
                     required
                     name="contactPhone"
@@ -331,28 +329,13 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                   />
                 </label>
 
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-ink">
-                    Operating window
-                  </span>
-                  <input
-                    required
-                    name="operatingWindow"
-                    value={form.operatingWindow}
-                    onChange={handleChange}
-                    placeholder="24/7 or 06:00 - 22:00"
-                    className="h-13 rounded-2xl border border-line bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
-                  />
-                </label>
-
                 <label className="grid gap-2 md:col-span-2">
-                  <span className="text-sm font-medium text-ink">Capacity</span>
+                  <span className="text-sm font-medium text-ink">Website</span>
                   <input
-                    required
-                    name="capacity"
-                    value={form.capacity}
+                    name="website"
+                    value={form.website}
                     onChange={handleChange}
-                    placeholder="e.g. 5.5M TEU annually"
+                    placeholder="https://carrier.example"
                     className="h-13 rounded-2xl border border-line bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
                   />
                 </label>
@@ -364,23 +347,23 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                 Step 03
               </p>
               <h4 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
-                Upload port documents
+                Upload reference documents
               </h4>
 
               <div className="mt-6 grid gap-4">
                 <FileUploadCard
-                  acceptedLabel="Authority pack"
-                  description="Upload permits, access guidelines, authority circulars, or regulatory documents."
-                  files={authorityDocs}
-                  label="Authority and regulatory documents"
-                  onFilesChange={setAuthorityDocs}
+                  acceptedLabel="Carrier pack"
+                  description="Upload carrier agreements, routing guides, or commercial reference files."
+                  files={profileDocs}
+                  label="Carrier profile documents"
+                  onFilesChange={setProfileDocs}
                 />
                 <FileUploadCard
-                  acceptedLabel="Operations pack"
-                  description="Attach berth schedules, terminal SOPs, movement notices, or operating procedures."
-                  files={operationsDocs}
-                  label="Operations and terminal documents"
-                  onFilesChange={setOperationsDocs}
+                  acceptedLabel="Ops pack"
+                  description="Attach operational instructions, cut-off notices, or escalation contacts."
+                  files={opsDocs}
+                  label="Operations and planning documents"
+                  onFilesChange={setOpsDocs}
                 />
               </div>
             </div>
@@ -390,7 +373,7 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                 Step 04
               </p>
               <h4 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
-                Port notes and handoff context
+                Carrier notes and handoff context
               </h4>
 
               <label className="mt-6 grid gap-2">
@@ -400,17 +383,16 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                   value={form.notes}
                   onChange={handleChange}
                   rows={6}
-                  placeholder="Add berth notes, congestion concerns, customer handling instructions, or gate process details."
+                  placeholder="Add routing notes, escalation guidance, or planning context for this shipping line."
                   className="rounded-3xl border border-line bg-panel-muted px-4 py-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10"
                 />
               </label>
 
               <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-line bg-[linear-gradient(135deg,rgba(15,108,189,0.08),rgba(255,255,255,0.98))] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-muted">
-                  The port and selected document names will be saved in MySQL
                   {isEditing
-                    ? " and reflected immediately in the port list."
-                    : " and shown immediately in the port list."}
+                    ? "The shipping line master record and selected document names will update the saved MySQL record and refresh immediately in the list."
+                    : "The shipping line master record and selected document names will be saved in MySQL and shown immediately in the list."}
                 </p>
                 <button
                   type="submit"
@@ -419,11 +401,11 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                 >
                   {isSubmitting
                     ? isEditing
-                      ? "Updating port..."
-                      : "Saving port..."
+                      ? "Updating shipping line..."
+                      : "Saving shipping line..."
                     : isEditing
-                      ? "Update port"
-                      : "Save port"}
+                      ? "Update shipping line"
+                      : "Save shipping line"}
                 </button>
               </div>
             </div>
@@ -435,10 +417,10 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                 Readiness panel
               </p>
               <h4 className="mt-3 text-2xl font-semibold tracking-tight">
-                Port onboarding pulse
+                Shipping line onboarding pulse
               </h4>
               <div className="mt-6 space-y-4">
-                {portSignals.map((item) => (
+                {shippingLineSignals.map((item) => (
                   <div
                     key={item.label}
                     className="rounded-[22px] border border-white/10 bg-white/7 p-4"
@@ -462,7 +444,7 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                 Quality checklist
               </p>
               <div className="mt-4 space-y-3">
-                {portChecklist.map((item) => (
+                {shippingLineChecklist.map((item) => (
                   <div
                     key={item}
                     className="flex items-start gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-ink shadow-sm"
@@ -479,10 +461,10 @@ export function PortForm({ initialPort, portId }: PortFormProps) {
                 Files prepared
               </p>
               <p className="mt-3 text-3xl font-semibold tracking-tight text-ink">
-                {authorityDocs.length + operationsDocs.length}
+                {profileDocs.length + opsDocs.length}
               </p>
               <p className="mt-2 text-sm leading-6 text-muted">
-                Documents selected for port onboarding review.
+                Documents selected for this shipping line master record.
               </p>
             </div>
           </aside>

@@ -10,6 +10,8 @@ export type ContainerStatus =
   | "Under Inspection"
   | "Cancelled";
 
+export type DeliveryType = "" | "Live" | "Drop" | "SOC";
+
 export type ContainerRecord = {
   additionalCharges: ContainerCharge[];
   baseRate: string;
@@ -20,11 +22,15 @@ export type ContainerRecord = {
   createdAt: string;
   currencyType: string;
   customer: string;
+  deliveryBookingTime: string;
+  deliveryType: DeliveryType;
   documents: string[];
+  gateCode: string;
   id: string;
   lfd: string;
   loadType: "Import" | "Export";
   notes: string;
+  pin: string;
   port: string;
   pickupBookingTime: string;
   pickupLocation: string;
@@ -52,10 +58,14 @@ export type ContainerInput = {
   containerNumber: string;
   currencyType: string;
   customer: string;
+  deliveryBookingTime: string;
+  deliveryType: DeliveryType;
   documents: string[];
+  gateCode: string;
   lfd: string;
   loadType: "Import" | "Export";
   notes: string;
+  pin: string;
   port: string;
   pickupBookingTime: string;
   pickupLocation: string;
@@ -90,11 +100,15 @@ const seedContainers: ContainerRecord[] = [
     createdAt: "2026-06-02T09:00:00.000Z",
     currencyType: "USD",
     customer: "Metro Retail Supply",
+    deliveryBookingTime: "2026-06-29T16:30",
+    deliveryType: "Live",
     documents: ["Delivery-Order.pdf", "Dispatch-Release.pdf"],
+    gateCode: "GATE-3A",
     id: "CONT-4001",
     lfd: "2026-06-30",
     loadType: "Import",
     notes: "Allocated for western retail replenishment lane.",
+    pin: "4721",
     port: "Jawaharlal Nehru Port",
     pickupBookingTime: "2026-06-28T09:30",
     pickupLocation: "Nhava Sheva Pickup Zone 3",
@@ -122,11 +136,15 @@ const seedContainers: ContainerRecord[] = [
     createdAt: "2026-06-11T11:20:00.000Z",
     currencyType: "USD",
     customer: "NorthFresh Foods",
+    deliveryBookingTime: "2026-06-30T20:00",
+    deliveryType: "Drop",
     documents: ["Rate-Confirmation.pdf"],
+    gateCode: "GATE-2C",
     id: "CONT-4002",
     lfd: "2026-07-02",
     loadType: "Export",
     notes: "Ready for cold-chain allocation from Bengaluru hub.",
+    pin: "6815",
     port: "Chennai Port",
     pickupBookingTime: "2026-06-29T05:30",
     pickupLocation: "South Cold Storage Hub Gate 2",
@@ -156,11 +174,15 @@ const seedContainers: ContainerRecord[] = [
     createdAt: "2026-06-19T15:45:00.000Z",
     currencyType: "USD",
     customer: "Westline Components",
+    deliveryBookingTime: "2026-07-01T10:45",
+    deliveryType: "SOC",
     documents: ["Inspection-Checklist.pdf", "Damage-Photos.zip"],
+    gateCode: "BAY-6E",
     id: "CONT-4003",
     lfd: "2026-07-04",
     loadType: "Export",
     notes: "Pending structural review before loading heavy machinery.",
+    pin: "9054",
     port: "Visakhapatnam Port",
     pickupBookingTime: "2026-06-30T14:15",
     pickupLocation: "North Staging Yard Bay 6",
@@ -191,6 +213,14 @@ function canUseStorage() {
 
 function asString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
+}
+
+function normalizeDeliveryType(value: unknown): DeliveryType {
+  if (value === "Live" || value === "Drop" || value === "SOC") {
+    return value;
+  }
+
+  return "";
 }
 
 function normalizeCharge(
@@ -234,15 +264,19 @@ function normalizeContainerRecord(record: unknown, index: number): ContainerReco
     createdAt: asString(candidate.createdAt, new Date().toISOString()),
     currencyType: asString(candidate.currencyType, "USD"),
     customer: asString(candidate.customer ?? candidate.assignedCustomer),
+    deliveryBookingTime: asString(candidate.deliveryBookingTime),
+    deliveryType: normalizeDeliveryType(candidate.deliveryType),
     documents: Array.isArray(candidate.documents)
       ? candidate.documents.filter(
           (document): document is string => typeof document === "string",
         )
       : [],
+    gateCode: asString(candidate.gateCode),
     id: asString(candidate.id, `CONT-${4000 + index}`),
     lfd: asString(candidate.lfd),
     loadType: candidate.loadType === "Export" ? "Export" : "Import",
     notes: asString(candidate.notes),
+    pin: asString(candidate.pin),
     port: asString(candidate.port),
     pickupBookingTime: asString(candidate.pickupBookingTime),
     pickupLocation: asString(candidate.pickupLocation ?? candidate.currentLocation),
@@ -348,11 +382,15 @@ export function addContainer(input: ContainerInput) {
     createdAt: new Date().toISOString(),
     currencyType: input.currencyType,
     customer: input.customer,
+    deliveryBookingTime: input.deliveryBookingTime,
+    deliveryType: input.deliveryType,
     documents: input.documents,
+    gateCode: input.gateCode,
     id: `CONT-${Math.floor(1000 + (Date.now() % 9000))}`,
     lfd: input.lfd,
     loadType: input.loadType,
     notes: input.notes,
+    pin: input.pin,
     port: input.port,
     pickupBookingTime: input.pickupBookingTime,
     pickupLocation: input.pickupLocation,

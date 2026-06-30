@@ -9,10 +9,17 @@ export const metadata: Metadata = {
 export default async function PortsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; deleted?: string; updated?: string }>;
 }) {
-  const { created } = await searchParams;
+  const { created, deleted, updated } = await searchParams;
   const ports = await listPorts();
 
-  return <PortsList created={created === "1"} ports={ports} />;
+  return (
+    <PortsList
+      created={created === "1"}
+      deleted={deleted === "1"}
+      ports={ports}
+      updated={updated === "1"}
+    />
+  );
 }

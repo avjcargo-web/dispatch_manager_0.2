@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { ContainerRecord } from "./container-store";
+import type { ContainerRecord, DeliveryType } from "./container-store";
 import type { CustomerRecord } from "./customer-store";
+import { createFilesFromNames } from "./file-upload-utils";
 import { FileUploadCard } from "./file-upload-card";
 import type { PortRecord } from "./port-store";
+import type { ShippingLineRecord } from "./shipping-line-store";
 import type { WarehouseYardRecord } from "./warehouse-yard-store";
 
 const initialForm = {
@@ -17,9 +19,13 @@ const initialForm = {
   containerNumber: "",
   currencyType: "USD",
   customer: "",
+  deliveryBookingTime: "",
+  deliveryType: "" as DeliveryType,
+  gateCode: "",
   lfd: "",
   loadType: "Import" as "Import" | "Export",
   notes: "",
+  pin: "",
   port: "",
   pickupBookingTime: "",
   pickupLocation: "",
@@ -65,10 +71,12 @@ const containerChecklist = [
 ];
 
 const inputClassName =
-  "h-13 rounded-2xl border border-line bg-white px-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10";
+  "h-13 rounded-2xl border border-line bg-white px-4 pr-3 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10";
 
 const textAreaClassName =
   "rounded-3xl border border-line bg-white px-4 py-4 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-4 focus:ring-accent/10";
+
+const dateInputClassName = `${inputClassName} [color-scheme:light]`;
 
 type ChargeDraft = {
   amount: string;
@@ -84,21 +92,12 @@ function createChargeDraft(id: string): ChargeDraft {
   };
 }
 
-function createFilesFromNames(fileNames: string[]) {
-  return fileNames.map(
-    (fileName, index) =>
-      new File([""], fileName, {
-        lastModified: index,
-        type: "application/octet-stream",
-      }),
-  );
-}
-
 type ContainerFormProps = {
   containerId?: string;
   customers: CustomerRecord[];
   initialContainer?: ContainerRecord;
   ports: PortRecord[];
+  shippingLines: ShippingLineRecord[];
   warehouses: WarehouseYardRecord[];
 };
 
@@ -124,9 +123,13 @@ function createInitialFormValue(initialContainer?: {
   containerNumber: string;
   currencyType: string;
   customer: string;
+  deliveryBookingTime: string;
+  deliveryType: DeliveryType;
+  gateCode: string;
   lfd: string;
   loadType: "Import" | "Export";
   notes: string;
+  pin: string;
   port: string;
   pickupBookingTime: string;
   pickupLocation: string;
@@ -155,9 +158,13 @@ function createInitialFormValue(initialContainer?: {
     containerNumber: initialContainer.containerNumber,
     currencyType: initialContainer.currencyType,
     customer: initialContainer.customer,
+    deliveryBookingTime: initialContainer.deliveryBookingTime,
+    deliveryType: initialContainer.deliveryType,
+    gateCode: initialContainer.gateCode,
     lfd: initialContainer.lfd,
     loadType: initialContainer.loadType,
     notes: initialContainer.notes,
+    pin: initialContainer.pin,
     port: initialContainer.port,
     pickupBookingTime: initialContainer.pickupBookingTime,
     pickupLocation: initialContainer.pickupLocation,
@@ -190,6 +197,7 @@ type ContainerFormContentProps = {
     documents: string[];
   } & ReturnType<typeof createInitialFormValue>;
   ports: PortRecord[];
+  shippingLines: ShippingLineRecord[];
   warehouses: WarehouseYardRecord[];
 };
 
@@ -198,6 +206,7 @@ function ContainerFormContent({
   customers,
   initialContainer,
   ports,
+  shippingLines,
   warehouses,
 }: ContainerFormContentProps) {
   const router = useRouter();
@@ -219,6 +228,9 @@ function ContainerFormContent({
   const selectedPort = ports.find((item) => item.name === form.port) ?? null;
   const selectedWarehouse =
     warehouseOptions.find((item) => item.name === form.warehouse) ?? null;
+  const hasSelectedShippingLine = shippingLines.some(
+    (item) => item.name === form.shippingLine,
+  );
   const trackedChargesCount =
     [
       form.baseRate,
@@ -231,6 +243,8 @@ function ContainerFormContent({
       (charge) => charge.label.trim() || charge.amount.trim(),
     ).length;
   const isEditing = Boolean(containerId);
+  const isImportLoad = form.loadType === "Import";
+  const isExportLoad = form.loadType === "Export";
 
   useEffect(() => {
     const nextChargeIdToFocus = pendingFocusChargeId.current;
@@ -484,7 +498,7 @@ function ContainerFormContent({
                       Container number
                     </span>
                     <input
-                      required
+                      required={isImportLoad}
                       name="containerNumber"
                       value={form.containerNumber}
                       onChange={handleChange}
@@ -516,7 +530,7 @@ function ContainerFormContent({
                       Booking number
                     </span>
                     <input
-                      required
+                      required={isExportLoad}
                       name="bookingNumber"
                       value={form.bookingNumber}
                       onChange={handleChange}
@@ -530,6 +544,7 @@ function ContainerFormContent({
                       Container type
                     </span>
                     <select
+                      required
                       name="type"
                       value={form.type}
                       onChange={handleChange}
@@ -560,10 +575,26 @@ function ContainerFormContent({
 
                   <label className="grid gap-2">
                     <span className="text-sm font-medium text-ink">
+                      Delivery type
+                    </span>
+                    <select
+                      name="deliveryType"
+                      value={form.deliveryType}
+                      onChange={handleChange}
+                      className={inputClassName}
+                    >
+                      <option value="">Select delivery type</option>
+                      <option value="Live">Live</option>
+                      <option value="Drop">Drop</option>
+                      <option value="SOC">SOC</option>
+                    </select>
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-ink">
                       Weight (LBS)
                     </span>
                     <input
-                      required
                       min="0"
                       name="weightLbs"
                       onChange={handleChange}
@@ -578,14 +609,25 @@ function ContainerFormContent({
                     <span className="text-sm font-medium text-ink">
                       Shipping line
                     </span>
-                    <input
+                    <select
                       required
                       name="shippingLine"
                       value={form.shippingLine}
                       onChange={handleChange}
-                      placeholder="Carrier or shipping line"
                       className={inputClassName}
-                    />
+                    >
+                      <option value="">Select shipping line</option>
+                      {shippingLines.map((item) => (
+                        <option key={item.id} value={item.name}>
+                          {item.name} {item.scac ? `(${item.scac})` : ""}
+                        </option>
+                      ))}
+                      {form.shippingLine && !hasSelectedShippingLine ? (
+                        <option value={form.shippingLine}>
+                          {form.shippingLine} (legacy)
+                        </option>
+                      ) : null}
+                    </select>
                   </label>
 
                   <label className="grid gap-2">
@@ -593,24 +635,22 @@ function ContainerFormContent({
                       Ship ETA
                     </span>
                     <input
-                      required
                       type="date"
                       name="shipEta"
                       value={form.shipEta}
                       onChange={handleChange}
-                      className={inputClassName}
+                      className={dateInputClassName}
                     />
                   </label>
 
                   <label className="grid gap-2">
                     <span className="text-sm font-medium text-ink">LFD</span>
                     <input
-                      required
                       type="date"
                       name="lfd"
                       value={form.lfd}
                       onChange={handleChange}
-                      className={inputClassName}
+                      className={dateInputClassName}
                     />
                   </label>
 
@@ -644,7 +684,20 @@ function ContainerFormContent({
                       name="pickupBookingTime"
                       value={form.pickupBookingTime}
                       onChange={handleChange}
-                      className={inputClassName}
+                      className={dateInputClassName}
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-ink">
+                      Delivery booking time
+                    </span>
+                    <input
+                      type="datetime-local"
+                      name="deliveryBookingTime"
+                      value={form.deliveryBookingTime}
+                      onChange={handleChange}
+                      className={dateInputClassName}
                     />
                   </label>
 
@@ -673,7 +726,6 @@ function ContainerFormContent({
                       Warehouse address
                     </span>
                     <input
-                      required
                       name="warehouseAddress"
                       value={form.warehouseAddress}
                       onChange={handleChange}
@@ -715,8 +767,33 @@ function ContainerFormContent({
                   </label>
 
                   <label className="grid gap-2">
+                    <span className="text-sm font-medium text-ink">
+                      Gate code
+                    </span>
+                    <input
+                      name="gateCode"
+                      value={form.gateCode}
+                      onChange={handleChange}
+                      placeholder="Terminal gate code"
+                      className={inputClassName}
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-ink">PIN</span>
+                    <input
+                      name="pin"
+                      value={form.pin}
+                      onChange={handleChange}
+                      placeholder="Pickup or release PIN"
+                      className={inputClassName}
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
                     <span className="text-sm font-medium text-ink">SCAC</span>
                     <input
+                      required
                       name="scac"
                       value={form.scac}
                       onChange={handleChange}
@@ -788,7 +865,6 @@ function ContainerFormContent({
                     Base rate
                   </span>
                   <input
-                    required
                     min="0"
                     name="baseRate"
                     onChange={handleChange}
@@ -1075,6 +1151,7 @@ export function ContainerForm({
   customers,
   initialContainer,
   ports,
+  shippingLines,
   warehouses,
 }: ContainerFormProps) {
   if (containerId && !initialContainer) {
@@ -1115,6 +1192,7 @@ export function ContainerForm({
           : undefined
       }
       ports={ports}
+      shippingLines={shippingLines}
       warehouses={warehouses}
     />
   );

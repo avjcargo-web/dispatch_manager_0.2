@@ -67,10 +67,6 @@ function getPriorityClasses(priority: string) {
   return "bg-slate-100 text-slate-700";
 }
 
-function formatRate(currencyType: string, rate: string) {
-  return rate ? `${currencyType} ${rate}` : "Pricing pending";
-}
-
 type DispatchListProps = {
   cancelled?: boolean;
   created?: boolean;
@@ -167,8 +163,8 @@ export function DispatchList({
               Dispatch board
             </h3>
             <p className="ops-copy mt-3 max-w-2xl text-sm leading-7">
-              Manage container-led dispatch moves with assigned drivers, mapped
-              route types, and pricing that can be added after activation.
+              Manage driver-safe dispatch moves with pickup, delivery, gate, and
+              container instructions without exposing extra commercial context.
             </p>
           </div>
 
@@ -266,36 +262,38 @@ export function DispatchList({
                     </span>
                   </div>
                   <p className="ops-copy mt-2 text-sm">
-                    {item.dispatchType} / {item.loadType}
+                    {(item.dispatchType || "Assign later")} / {item.loadType}
                   </p>
                   <p className="ops-subtle mt-1 text-sm">
-                    {item.origin} to {item.destination}
-                  </p>
-                  <p className="ops-subtle mt-1 text-sm">
-                    Track: {item.routeTrack || item.dispatchType.replaceAll(" to ", " -> ")}
+                    {item.deliveryType || "Delivery type pending"}
                   </p>
                 </div>
 
                 <div className="grid gap-3 text-sm sm:grid-cols-2 lg:min-w-[22rem]">
                   <div className="ops-metric-card rounded-2xl px-4 py-3">
                     <p className="ops-kicker text-[11px] font-semibold uppercase tracking-[0.18em]">
-                      Customer
+                      Assignment
                     </p>
-                    <p className="ops-heading mt-2 font-medium">{item.customer}</p>
-                    <p className="ops-subtle mt-1 text-xs">{item.driver}</p>
+                    <p className="ops-heading mt-2 font-medium">
+                      {item.driver || "Assign later"}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">
+                      {item.equipmentType || "Vehicle pending"}
+                    </p>
                     <p className="ops-subtle mt-1 text-xs">
                       Dispatcher: {item.dispatcher}
                     </p>
                   </div>
                   <div className="ops-metric-card rounded-2xl px-4 py-3">
                     <p className="ops-kicker text-[11px] font-semibold uppercase tracking-[0.18em]">
-                      Commercial
+                      Container
                     </p>
                     <p className="ops-heading mt-2 font-medium">
-                      {formatRate(item.currencyType, item.rate)}
+                      {item.containerNumber || "Pending"}
                     </p>
                     <p className="ops-subtle mt-1 text-xs">
-                      {item.documents.length} file(s) attached
+                      {item.size || "Size pending"} /{" "}
+                      {item.shippingLine || "Shipping line pending"}
                     </p>
                   </div>
                 </div>
@@ -310,6 +308,9 @@ export function DispatchList({
                     {formatOptionalDateTime(item.pickupWindow)}
                   </p>
                   <p className="ops-subtle mt-1 text-xs">{item.origin}</p>
+                  <p className="ops-subtle mt-1 text-xs">
+                    Gate: {item.gateCode || "Pending"} / PIN: {item.pin || "Pending"}
+                  </p>
                 </div>
                 <div className="ops-metric-card rounded-2xl px-4 py-3">
                   <p className="ops-kicker text-[11px] font-semibold uppercase tracking-[0.18em]">
@@ -319,22 +320,22 @@ export function DispatchList({
                     {formatOptionalDateTime(item.deliveryWindow)}
                   </p>
                   <p className="ops-subtle mt-1 text-xs">{item.destination}</p>
+                  <p className="ops-subtle mt-1 text-xs">
+                    {item.deliveryType || "Delivery type pending"}
+                  </p>
                 </div>
                 <div className="ops-metric-card rounded-2xl px-4 py-3">
                   <p className="ops-kicker text-[11px] font-semibold uppercase tracking-[0.18em]">
-                    Equipment
+                    Container refs
                   </p>
-                    <p className="ops-heading mt-2 text-sm font-medium">
-                      {item.equipmentType}
-                    </p>
-                    <p className="ops-subtle mt-1 text-xs">
-                      Load: {item.loadType}
-                    </p>
-                    <p className="ops-subtle mt-1 text-xs">
-                      Container: {item.containerNumber || "Pending"}
-                    </p>
+                  <p className="ops-heading mt-2 text-sm font-medium">
+                    Seal: {item.sealNumber || "Pending"}
+                  </p>
                   <p className="ops-subtle mt-1 text-xs">
-                    Chassis: {item.chassisNumber || "Pending"}
+                    Check-in: {item.checkedInNumber || "Pending"}
+                  </p>
+                  <p className="ops-subtle mt-1 text-xs">
+                    SCAC: {item.scac || "Pending"}
                   </p>
                 </div>
                 <div className="ops-metric-card rounded-2xl px-4 py-3">
@@ -394,12 +395,12 @@ export function DispatchList({
             <thead>
               <tr className="ops-subtle text-left text-xs font-semibold uppercase tracking-[0.2em]">
                 <th className="px-4 py-2">Load</th>
-                <th className="px-4 py-2">Customer</th>
+                <th className="px-4 py-2">Assignment</th>
                 <th className="px-4 py-2">Move</th>
-                <th className="px-4 py-2">Lane</th>
-                <th className="px-4 py-2">Timing</th>
-                <th className="px-4 py-2">Equipment</th>
-                <th className="px-4 py-2">Commercial</th>
+                <th className="px-4 py-2">Pickup</th>
+                <th className="px-4 py-2">Delivery</th>
+                <th className="px-4 py-2">Container</th>
+                <th className="px-4 py-2">Refs</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Added</th>
                 <th className="px-4 py-2">Actions</th>
@@ -416,51 +417,61 @@ export function DispatchList({
                     <p className="ops-subtle mt-1 text-xs">
                       Dispatcher: {item.dispatcher}
                     </p>
-                    <p className="ops-subtle mt-1 text-xs">{item.driver}</p>
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <p className="ops-heading font-medium">{item.customer}</p>
                     <p className="ops-subtle mt-1 text-xs">
-                      {item.documents.length} file(s)
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <p className="ops-heading font-medium">{item.dispatchType}</p>
-                    <p className="ops-subtle mt-1 text-xs">
-                      Track: {item.routeTrack || item.dispatchType.replaceAll(" to ", " -> ")}
-                    </p>
-                    <p className="ops-subtle mt-1 text-xs">{item.loadType}</p>
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <p className="ops-heading font-medium">{item.origin}</p>
-                    <p className="ops-subtle mt-1 text-xs">to {item.destination}</p>
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <p className="ops-subtle text-xs">
-                      Pickup: {formatOptionalDateTime(item.pickupWindow)}
-                    </p>
-                    <p className="ops-subtle mt-1 text-xs">
-                      Delivery: {formatOptionalDateTime(item.deliveryWindow)}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 align-top">
-                    <p className="ops-heading font-medium">{item.equipmentType}</p>
-                    <p className="ops-subtle mt-1 text-xs">
-                      Container: {item.containerNumber || "Pending"}
-                    </p>
-                    <p className="ops-subtle mt-1 text-xs">
-                      Chassis: {item.chassisNumber || "Pending"}
+                      {item.containerNumber || "Container pending"}
                     </p>
                   </td>
                   <td className="px-4 py-4 align-top">
                     <p className="ops-heading font-medium">
-                      {formatRate(item.currencyType, item.rate)}
+                      {item.driver || "Assign later"}
                     </p>
-                    <span
-                      className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getPriorityClasses(item.priority)}`}
-                    >
-                      {item.priority}
-                    </span>
+                    <p className="ops-subtle mt-1 text-xs">
+                      {item.equipmentType || "Vehicle pending"}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <p className="ops-heading font-medium">
+                      {item.dispatchType || "Assign later"}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">
+                      {item.deliveryType || "Delivery type pending"}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">{item.loadType}</p>
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <p className="ops-heading font-medium">
+                      {formatOptionalDateTime(item.pickupWindow)}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">{item.origin}</p>
+                    <p className="ops-subtle mt-1 text-xs">
+                      Gate: {item.gateCode || "Pending"} / PIN: {item.pin || "Pending"}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <p className="ops-heading font-medium">
+                      {formatOptionalDateTime(item.deliveryWindow)}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">{item.destination}</p>
+                    <p className="ops-subtle mt-1 text-xs">{item.routeTrack || "-"}</p>
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <p className="ops-heading font-medium">
+                      {item.size || "Size pending"}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">
+                      {item.shippingLine || "Shipping line pending"}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <p className="ops-heading font-medium">
+                      Seal: {item.sealNumber || "Pending"}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">
+                      Check-in: {item.checkedInNumber || "Pending"}
+                    </p>
+                    <p className="ops-subtle mt-1 text-xs">
+                      SCAC: {item.scac || "Pending"}
+                    </p>
                   </td>
                   <td className="px-4 py-4 align-top">
                     <span

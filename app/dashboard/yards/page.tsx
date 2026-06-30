@@ -9,15 +9,17 @@ export const metadata: Metadata = {
 export default async function YardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; deleted?: string; updated?: string }>;
 }) {
-  const { created } = await searchParams;
+  const { created, deleted, updated } = await searchParams;
   const yards = await listYards();
 
   return (
     <WarehouseYardsList
       created={created === "1"}
+      deleted={deleted === "1"}
       facilityType="Yard"
+      updated={updated === "1"}
       warehouseYards={yards}
     />
   );
